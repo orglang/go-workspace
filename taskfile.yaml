@@ -51,10 +51,19 @@ tasks:
       - cmd: >-
           docker compose
           --file ops/{{index .DB .OPS}}.compose.yaml
-          --file ops/engine.compose.yaml
           --env-file ops/{{.OPS}}/.env
           up
           --remove-orphans
           --pull missing
           --quiet-pull
           --detach
+      # - cmd: >-
+      #     docker compose
+      #     --file ops/{{index .DB .OPS}}.compose.yaml
+      #     --file ops/engine.compose.yaml
+      #     --env-file ops/{{.OPS}}/.env
+      #     up
+      #     --remove-orphans
+      #     --pull missing
+      #     --quiet-pull
+      #     --detach

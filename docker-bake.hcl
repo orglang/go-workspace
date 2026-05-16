@@ -1,5 +1,6 @@
 group "default" {
-  targets = ["engine", "postgres"]
+  targets = ["postgres"]
+#   targets = ["engine", "postgres"]
 }
 
 target "engine" {
