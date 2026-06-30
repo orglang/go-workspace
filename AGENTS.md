@@ -1,78 +1,77 @@
-# Orglang
+# Язык программирования огранизаций и его рантайм исполнения
 
-This is a programming language to support organization development and management.
+## Репозитории проекта
 
-## Архитектура (Software Architecture)
+- `github.com/orglang/.agents`: контекст для агентов
+- `github.com/orglang/rationale`: теоретические и практические обоснования
+- `github.com/orglang/go-workspace`: рабочее пространство разработки на go
+- `github.com/orglang/go-engine`: реализация рантайма на go
+- `github.com/orglang/go-sdk`: реализация SDK на go
 
-Any software, in essence, is a pile of abstractions.
+## Структура проекта
 
-### Principles
+- `.agents`: Контекст для агентов (сюда клонируется `github.com/orglang/.agents`)
+- `.github`: Обвязка github actions
+- `.opencode`: Обвязка opencode
+- `rationale`: Теоретические и практические обоснования (сюда клонируется `github.com/orglang/rationale`)
+- `sdk`: Компонент, реализующий SDK (сюда клонируется `github.com/orglang/go-sdk`)
+- `engine`: Компонент, реализующий рантайм (сюда клонируется `github.com/orglang/go-engine`)
+- `stack`: System level definition
+- `taskfile.yaml`: Корневой taskfile проекта
 
-Project architecture reflects following design principles.
+## Структура компонента
 
-#### Explicit Abstraction Elaboration
+Это самая полная общая структура пакетов компонента. Конкретный компонент может содержать только часть пакетов.
 
-- Domain-Driven Design
-
-#### Core and Periphery Separation
-
-- Functional Core and Imperative Shell
-- Hexagonal/Onion Architecture
-
-#### Data and Behavior Separation
-
-- Functional Programming
-
-#### Vertical then Horizontal Decomposition
-
-- Vertical Slice Architecture
-- Layered Architecture
-
-### Kinds
-
-Repository structure reflects abstraction kinds.
-
-- `app`: Runnable program abstraction
-  - `web`: Web application program
-- `adt`: Reusable data abstraction
-  - `identity`: Identification value type
-  - `polarity`: Polarization value type
-  - `pooldec`: Pool declaration aggregate type
-  - `poolexec`: Pool execution aggregate type
-  - `poolexp`: Pool expression value type
-  - `procdec`: Process declaration aggregate type
-  - `procdef`: Process definition entity type
-  - `procexec`: Process execution aggregate type
-  - `procexp`: Process expression value type
-  - `procstep`: Process step value type
-  - `revnum`: Revision number value type
-  - `symbol`: Symbol value type
-  - `syndec`: Synonym declaration value type
-  - `procbind`: Term context value type
-  - `typedef`: Type definition aggregate type
-  - `typeexp`: Type expression value type
-  - `uniqref`: Unique refererence value type
-  - `uniqsym`: Unique symbol value type
-- `lib`: Reusable behavior abstraction
-  - `db`: Database drivers
+- `app`: Runnable program
+  - `web`: Web application
+- `adt`: Reusable abstract data types
+  - `commsem`: Communication semantics
+  - `compsem`: Computation semantics
+  - `compvar`: Computation variable
+  - `identity`: Identification value
+  - `option`: Optional value
+  - `polarity`: Polarization value
+  - `seqnum`: Sequential number
+  - `symbol`: Atomic symbol
+  - `uniqsym`: Unique (namespaced) symbol
+  - `valkey`: Content-based key (aka hashcode or digest)
+- `pool`: Pool abstract data types
+  - `commexch`: Communication exchange
+  - `commturn`: Communication turn
+  - `compexec`: Computation execution
+  - `compstep`: Computation step
+  - `compvar`: Computation variable
+  - `termdef`: Term definition
+  - `termexp`: Term expression
+  - `typedef`: Type definition
+  - `typeexp`: Type expression
+- `proc`: Process abstract data types
+  - `commexch`: Communication exchange
+  - `commturn`: Communication turn
+  - `compexec`: Computation execution
+  - `compstep`: Computation step
+  - `termdec`: Term declaration
+  - `termdef`: Term definition
+  - `termexp`: Term expression
+  - `typedef`: Type definition
+  - `typeexp`: Type expression
+- `lib`: Reusable abstract behavior types
+  - `db`: Relational database drivers
   - `kv`: Key-value store drivers
   - `lf`: Logging framework harness
   - `te`: Template engine harness
+  - `wp`: Worker pool harness
   - `ws`: Web server harness
-- `db`: Storage schema definition
+- `db`: Storage schema
   - `postgres`: PostgreSQL schema
-- `orch`: Orchestration harness definition
-  - `task`: Task (build tool) harness definition
 - `proto`: Prototype endeavors
-- `stack`: System level definition
-- `test`: Test level harness
+- `test`: Test harness
   - `e2e`: End-to-end tests
 
-### Layers
+## Структура пакета
 
-Package structure reflects abstraction layers.
-
-#### Toolkit agnostic
+### Toolkit agnostic
 
 - `core.go`: Pure domain logic
     - Domain models (core models)
@@ -95,7 +94,7 @@ Package structure reflects abstraction layers.
     - Domain to message conversions and vice versa
     - Domain to data conversions and vice versa
 
-#### Toolkit specific
+### Toolkit specific
 
 - `di_fx.go`: Fx (dependency injection library) specific component definitions
 - `me_echo.go`: Echo (web framework) specific controller definitions (primary adapters)
@@ -106,75 +105,55 @@ Package structure reflects abstraction layers.
 - `tc_goverter.go`: Goverter (type conversion tool) specific conversion definitions
 - `vp/bs5/*.html`: Go's built-in `html/template` and Bootstrap 5 (frontend toolkit) specific presentation definitions
 
-### Aspects
+## Структура моделей
 
-Code structure reflects abstraction aspects. 
+- `<model>Ref`: Machine-readable pointer to an abstraction
+- `<model>Spec`: Specification to create an abstraction
+- `<model>Rec`: Record for abstraction retrieval (excluding sub abstractions)
+- `<model>Mod`: Modification to change an abstraction (including sub abstractions)
+- `<model>Snap`: Snapshot for abstraction retrieval (including sub abstractions)
 
-#### Scale
+## Структура артефактов
 
-- `aggregate`: Concurrency-aware abstraction
-    - Consumed by controller adapters
-    - Specified by `API` interfaces
-    - Implemented by `service` structs
-- `entity`: Identity-aware abstraction
-    - Consumed by `service` structs
-    - Specified by `Repo` interfaces
-    - Implemented by DAO adapters
-- `value`: Classical data abstraction
-    - Consumed by `entity` or `aggregate` abstractions
-    - Specified by `ADT` types and/or interfaces
-    - Implemented by concrete types and/or structs
+Артефакты подготавливаются в локальном (local) репозитории и затем публикуются в удаленный (remote) репозиторий.
 
-#### Lifecycle
+`check1` ⟶ `prepare` ⟶ `check2` ⟶ `publish`
 
-- `dec`: Abstraction declaration phase
-- `def`: Abstraction definition phase
-- `exp`: Abstraction expression phase
-- `exec`: Abstraction execution phase
+### Группы артефактов
 
-#### Slice
+- `app`: Всё, что касается приложения
+- `gear`: Всё, что касается конвейера
 
-- `ref`: Machine-readable pointer to an abstraction
-- `spec`: Specification to create an abstraction
-- `rec`: Record for abstraction retrieval (excluding sub abstractions)
-- `mod`: Modification to change an abstraction (including sub abstractions)
-- `snap`: Snapshot for abstraction retrieval (including sub abstractions)
+### Виды артефактов
 
-#### Artifact
+- `sources`: Исходники (в т.ч. сгенерированные) на языке программирования, языке разметки и т.п.
+- `binaries`: Бинарники, которые формируются в результате компиляции и линковки. Присуще языкам со статической типизацией.
+- `distros`: Пакеты в формате, пригодном для распространения (архивы, образы, и т.п.)
 
-- `sources`: Human-readable code of abstraction
-- `binaries`: Machine-readable code of abstraction
-- `distros`: Distribution-friendly binaries (images, archives, etc.)
-- `stacks`: Deployment-friendly definitions (ansible playbooks, helm charts, etc.)
+`sources` ⟶ `binaries` ⟶ `distros`
 
-## Разработка
+### CI job types
 
-Разработка задачи ведется в несколько этапов:
-1. `модификация` - самая быстрая обратная связь посредством вызова инструментов/утилит в рамках локального окружения
-2. `стабилизация` - более медленная обратная связь посредством выполнения workflows в рамках CI
-3. `утверждение` - самая медленная обратная связь посредством внешнего ревью в рамках PR
+- `app/sources`
+- `app/binaries`
+- `app/distros`
+- `gear/sources`
+- `gear/distros`
 
-Агент переключается между этапами в следующем порядке: `модификация` -> `стабилизация` -> `утверждение`. При возникновении ошибки на любом из них агент возвращается на этап модификации.
+## Процесс разработки
 
-#### Этап модификации
+### Этапы задачи
 
-Агент как разработчик:
-1. Вносит правки в файлы
-2. Точечно запускает тесты командой `go test ./path/to/file_test.go` и правит ошибки при наличии.
+1. `modification`: Этап активной модификации кода
+1. `stabilization`: Этап стабилизации работы компонентов системы и компонентов окружения
+1. `verification`: Этап согласования работы системы как единого целого
+1. `finalization`: Этап принятия кода
 
-#### Этап стабилизации
+### Переходы между этапами
 
-Агент как разработчик:
-1. Анализирует исходный код командой `task sources` и правит замечания при наличии.
-2. Запускает модульные тесты командой `task tests:unit` и правит ошибки при наличии.
-3. Фиксирует (commit) ревизию и отправляет (push) её на сервер. В результате чего автоматически запускается workflow `task_revision` в рамках CI.
-4. Ожидает выполнения workflow `task_revision` и правит ошибки при наличии.
+1. [*] ⟶ `modification` - pull request отсутствует или переведен в `closed(unmerged)`
+1. [*] ⟶ `stabilization` - pull request создан или переведен в `draft`
+1. [*] ⟶ `verification` - pull request создан или переведен в `ready_for_review`
+1. [*] ⟶ `finalization` - pull request переведен в `closed(merged)`
 
-#### Этап утверждения
-
-Агент как разработчик:
-1. Создает PR. В результате чего автоматически запускается workflow `main_proposal` в рамках CI.
-2. Ожидает выполнения workflow `main_proposal` и правит ошибки при наличии.
-3. Ожидает выполнения review и правит замечания при наличии.
-4. Вливает PR. В результате чего автоматически запускается workflow `main_proposal` в рамках CI.
-5. Ожидает выполнения workflow `main_proposal` и правит ошибки при наличии.
+`modification` ⟶ `stabilization` ⟶ `verification` ⟶ `finalization`
