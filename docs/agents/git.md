@@ -10,3 +10,10 @@
 - Never commit secrets or generated local credentials.
 - Do not modify git configuration, skip hooks, use interactive `-i` operations, or create empty commits unless explicitly requested.
 - If a PR already exists, inspect its state before deciding whether a new branch/PR is appropriate.
+
+## Branch naming
+
+- When a branch is associated with a GitHub issue, include the issue number in the branch name.
+- Prefer `<type>/<issue-number>-<short-description>`, for example `fix/123-ci-workflow-names`.
+- Use a short, lowercase, hyphen-separated description.
+- When there is no associated issue, use `<type>/<short-description>`, for example `docs/branch-naming`.
