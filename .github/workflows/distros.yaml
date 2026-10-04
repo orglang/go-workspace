@@ -46,7 +46,13 @@ jobs:
 
       - uses: ./.github/actions/setup-tools
 
-      - name: Run distros checks
+      - name: check1
         run: |
-          task distros
-          task stack:commons
+          task engine:tests:it
+          task sdk:tests
+
+      - name: prepare
+        run: task distros
+
+      - name: check2
+        run: task stack:commons
