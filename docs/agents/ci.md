@@ -32,19 +32,40 @@ Draft PR
     sources
 
 Ready for review
-  └─ ready_for_review
+  └─ ready_for_review / synchronize
        ↓
     binaries
 
 Merge queue
   └─ merge_group
        ↓
-    sources + binaries
+    sources + binaries + distros
 ```
 
-`sources` is the fast modification-stage check and runs throughout the PR lifecycle. `binaries` is the stabilization-stage check and starts when a PR is ready for review. Both stages are re-evaluated for a merge-group candidate so that the merge queue validates the actual merge result.
+`sources` is the fast modification-stage check and runs throughout the PR lifecycle. `binaries` is the stabilization-stage check and starts when a PR is ready for review. `distros` is the verification-stage gate for the merge-group candidate.
 
-A post-merge `binaries` workflow is intentionally not required: the merge-group run is the pre-merge verification of the merge candidate. A separate post-merge workflow should be introduced only when the finalization stage requires checks that are meaningfully different from the merge-queue gates.
+The merge queue validates the actual merge result, so `sources`, `binaries`, and `distros` are required checks for the merge candidate.
+
+A post-merge `binaries` workflow is intentionally not required: the merge-group run is the pre-merge verification of the merge candidate.
+
+## Required-check and reusable-workflow naming
+
+Required checks must have stable names on both PR and merge-group events.
+
+Do not put an event-specific skip condition on the caller job:
+
+```yaml
+jobs:
+  binaries:
+    if: ...
+    uses: orglang/go-workspace/.github/workflows/binaries.yaml@main
+```
+
+When the caller job itself is skipped, GitHub reports only the caller-level check (for example `CI / binaries`). When the reusable workflow runs, the check includes the called job (for example `CI / binaries / binaries`). Those are different check names.
+
+Instead, the caller always invokes the reusable workflow and passes an explicit boolean `run` input. The reusable workflow owns the `if: inputs.run` condition on its internal job. This pattern is used by both `binaries` and `distros`.
+
+This keeps the check hierarchy stable and allows required checks such as `distros / distros` to be satisfied consistently.
 
 ## Reusable workflow contract
 
@@ -54,12 +75,12 @@ The reusable workflow is the stable interface between repository-local event ada
 
 | Input | Required | Meaning |
 | --- | --- | --- |
-| `engine_ref` | yes | Exact `go-engine` commit SHA or ref to test. PR and merge-group callers must pass the revision represented by the event. |
-| `sdk_ref` | yes | Exact `go-sdk` commit SHA or ref to check out. Defaults are chosen by the caller, not inferred from the engine ref. |
+| `engine_ref` | yes | Exact `go-engine` commit SHA or ref to test. |
+| `sdk_ref` | yes | Exact `go-sdk` commit SHA or ref to check out. |
 | `workspace_ref` | yes | `go-workspace` revision containing the reusable workflow and Taskfiles. |
-| `stage` | — | Reserved for a future unified stage dispatcher. The current stage-specific reusable workflows select their stage by filename (`sources.yaml`, `binaries.yaml`, etc.). |
+| `run` | no | Boolean controlling whether the internal stage job executes. Defaults to `true`; event-specific skip policy belongs in the caller input expression, not on the caller job. |
 
-The caller may pass repository names explicitly when a fork or alternate repository is under test; the default production repositories are `orglang/go-engine` and `orglang/go-sdk`.
+Stage-specific reusable workflows select their stage by filename (`sources.yaml`, `binaries.yaml`, `distros.yaml`, etc.).
 
 ### Outputs
 
@@ -96,12 +117,12 @@ The `gear` pipeline follows the same artifact vocabulary where a corresponding s
 ## Stage semantics
 
 - **check1** is the fast precondition check for the artifact.
-- **prepare** creates the artifact consumed by check2.
+- **prepare** creates the artifact or runtime state consumed by check2.
 - **check2** is the authoritative verification for that artifact.
 - **publish** runs only after all required checks are green.
 - **running** is not success; long-running e2e/distros jobs remain pending until completion.
-- **skipped** is not silently converted to success. If a skipped job is required for the stage, the stage fails or is reported unavailable.
-- **failure** propagates to the originating PR for PR-triggered stages.
+- **skipped internal stage jobs** are intentional when the caller passes `run: false`. The caller workflow must still execute so that the reusable-workflow check keeps its stable name.
+- **failure** propagates to the originating PR or merge-group candidate.
 - **success** means every required check for that stage completed successfully.
 
 ## Existing workflow mapping
@@ -111,8 +132,8 @@ The intended `go-engine` workflow mapping is:
 | Caller workflow | Events | Stage / command | New contract |
 | --- | --- | --- | --- |
 | `.github/workflows/sources.yaml` | `opened`, `reopened`, `synchronize`, `ready_for_review` | reusable `sources` stage | Fast PR source checks; also run for the merge-group candidate. |
-| `.github/workflows/binaries.yaml` | `ready_for_review`, `merge_group` | reusable `binaries` stage | Stabilization checks before merge and on the merge-group candidate. |
-| `.github/workflows/main_proposal.yaml` | PR / `merge_group` | `task stack:commons` | Existing stack/e2e coverage; migrate to reusable `distros` without losing coverage. |
+| `.github/workflows/binaries.yaml` | `opened`, `ready_for_review`, `synchronize`, `merge_group` | reusable `binaries` stage | Caller always invokes reusable workflow; draft PRs pass `run: false`. |
+| `.github/workflows/distros.yaml` | PR update events, `merge_group` | reusable `distros` stage | Caller always invokes reusable workflow; merge-group candidates pass `run: true` and execute `check1 → prepare → check2`. |
 
 There is intentionally no `main_revision.yaml` binary gate in the target design. Post-merge finalization is a separate concern and should not duplicate the merge-group `binaries` check.
 
