@@ -3,8 +3,8 @@ description: Determine whether the current pull request changes the application
 
 outputs:
   changed:
-    description: Whether the current pull request changes this category
-    value: ${{ steps.result.outputs.changed }}
+    description: Whether the current change set changes the application
+    value: ${{ github.event_name != 'pull_request' || steps.filter.outputs.changed == 'true' }}
 
 runs:
   using: composite
@@ -23,17 +23,3 @@ runs:
             - 'proto/**'
             - 'go.mod'
             - 'go.sum'
-
-    - name: Set result
-      id: result
-      shell: bash
-      env:
-        FILTER_CHANGED: ${{ steps.filter.outputs.changed }}
-      run: |
-        set -euo pipefail
-
-        if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
-          echo "changed=${FILTER_CHANGED}" >> "${GITHUB_OUTPUT}"
-        else
-          echo "changed=true" >> "${GITHUB_OUTPUT}"
-        fi
