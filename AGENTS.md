@@ -30,10 +30,10 @@
   переигрывать молча: либо следуешь ему, либо пишешь новое ADR сюда же, superseding
   старое. ADR 0010 — это шаблон такой миграции, а не теория.
 - `GLOSSARY.md`: читать **перед** тем как назвать что-либо — идентификатор, тест,
-  текст коммита. Имя берётся отсюда, а не от соседнего кода. Словарь
-  переопределяет привычную терминологию: `API` — driving port, `Repo` — driven
-  port, `core`/`adapter` вместо «чистый слой» и «инфраструктура», «value key»
-  вместо «hash».
+  текст коммита. Имя берётся отсюда, а не от соседнего кода. Общепринятый термин,
+  понятный агенту без lookup'а, побеждает домашний: `primary port`, `secondary
+  adapter`, `DTO`, `DAO`, `controller`. Словарь держит то, чего знакомый термин не
+  покрывает — `core`/`adapter` как имена каталогов и `value key` как имя `valkey`.
 - Где что лежит: решения и словарь — **здесь**, в рабочем пространстве
   (`go-workspace`), код, который они описывают, — в `engine/`. Агент, работающий
   только в `engine/`, не найдёт их сам, а этот файл — единственная точка входа.
@@ -102,21 +102,21 @@
     - API interfaces (primary ports)
     - Service structs (core behaviors)
 - `me.go`: Pure message exchange (ME) logic
-    - Message related DTO's (edge models)
+    - Message related DTO's
 - `ds.go`: Pure data storage (DS) logic
-    - Data related DTO's (edge models)
+    - Data related records
     - Repository interfaces (secondary ports)
 - `iv.go`: Pure input validation (IV) logic
     - Message related validation
     - Config related validation
 - `cs.go`: Pure config storage (CS) logic
-    - Config related DTO's (edge models)
+    - Config related DTO's
 - `tc.go`: Pure type conversion (TC) logic
     - Domain to domain conversions
 
 `vp.go` в этот список не входит: view models несут теги `form:`/`json:`, то есть
-это wire models, а они принадлежат toolkit specific. У `tc.go` доменные
-конверсии agnostic, а конверсии в DTO SDK и обратно — нет.
+это DTO, а они принадлежат toolkit specific. У `tc.go` доменные конверсии
+agnostic, а конверсии в DTO SDK и обратно — нет.
 
 ### Toolkit specific
 

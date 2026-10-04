@@ -1,6 +1,6 @@
 # SDK Is Out of Scope for This Migration
 
-`sdk/` contains no domain logic — only 22 `me.go` message DTO files, 8 `me_resty.go` HTTP clients, and 2 `iv_ozzo.go` validators. It is a client of the engine's driving ports, not a hexagon, and is not restructured here.
+`sdk/` contains no domain logic — only 22 `me.go` message DTO files, 8 `me_resty.go` HTTP clients, and 2 `iv_ozzo.go` validators. It is a client of the engine's primary ports, not a hexagon, and is not restructured here.
 
 Two things surfaced while planning that remain open:
 

@@ -111,5 +111,5 @@ aggregates hold table names in an agnostic file — `pool/typedef`,
 - `task linter:revive` over the split directories — a split that leaves revive
   findings is not finished.
 - `task process` boots the whole fx graph; the aggregate's module registers its
-  driving port, driven port, and any cross-aggregate adapter binding. Read the
+  primary port, secondary port, and any cross-aggregate adapter binding. Read the
   `[Fx] PROVIDE` lines for this aggregate and confirm the bindings are unchanged.

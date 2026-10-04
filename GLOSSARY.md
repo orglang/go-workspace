@@ -3,6 +3,16 @@
 OrgLang is a language and runtime for organizations: constraints expressed as
 declarations, executed as processes over pools of definitions.
 
+An `_Avoid_` list exists only to separate two words that genuinely compete for
+one concept. It does not exist to keep an agent away from a word it already
+knows. Where a familiar industry term and a house term name the same thing, the
+familiar one wins: `primary port`, `secondary adapter`, `DTO`, `DAO`,
+`controller`. A house term survives only where it is the name in the code
+(`core/`, `adapter/`, `valkey`) or where the familiar term merges two things
+this codebase keeps apart. When you add a term, ask whether the word you are
+banning is one an agent would reach for unprompted — if yes, the definition
+needs work, not the ban.
+
 ## Architecture
 
 **Root domain**:
@@ -12,7 +22,7 @@ _Avoid_: bounded context (borrowed term with different baggage)
 
 **Aggregate**:
 The unit of persistence within a root domain. Exactly one aggregate maps to
-exactly one driven port (`Repo`) and one table family. Aggregates reference
+exactly one secondary port (`Repo`) and one table family. Aggregates reference
 each other by reference (`SemRef`), never by object graph.
 _Avoid_: entity, root entity
 
@@ -41,46 +51,46 @@ logging, config, templating, worker pools, HTTP server. Lives in `lib`.
 Hexagons depend on the framework layer; it knows nothing of hexagons.
 _Avoid_: shared kernel (different: framework layer has behaviour, kernel has types)
 
-**Driving port**:
+**Primary port**:
 The interface through which outside callers invoke a hexagon's behaviour.
 Named `API` in this codebase.
-_Avoid_: input port, primary port, use case
+_Avoid_: input port, use case
 
-**Driven port**:
+**Secondary port**:
 The interface a hexagon requires from storage or an external service. Named
 `Repo` in this codebase.
-_Avoid_: output port, secondary port, gateway
+_Avoid_: output port, gateway
 
-**Driving adapter**:
-Code that receives external requests and calls a driving port: HTTP
+**Primary adapter**:
+Code that receives external requests and calls a primary port: HTTP
 controllers, presenters, message consumers.
-_Avoid_: handler, controller
+_Avoid_: handler
 
-**Driven adapter**:
-Code that implements a driven port against a concrete toolkit: pgx DAOs,
+**Secondary adapter**:
+Code that implements a secondary port against a concrete toolkit: pgx DAOs,
 query builders, REST clients.
-_Avoid_: DAO, repository implementation, gateway
+_Avoid_: repository implementation, gateway
 
 **Agnostic core**:
 A hexagon's core package, which imports only other cores, the shared kernel,
 and the framework layer. It never imports an adapter. Lives in `core/`.
 _Avoid_: pure, clean, inner layer
 
-**Wire model**:
+**DTO**:
 A representation shaped for crossing a boundary — tagged for JSON or form
 encoding, or mirroring the SDK's DTOs. Distinct from the model the core
 reasons about, and always produced by an adapter.
-_Avoid_: DTO, view model, edge model
+_Avoid_: edge model, wire model
 
 **Conversion**:
-The mapping between a model and its wire form, or between a model and its
-persisted form. An adapter's responsibility.
+The mapping between a model and its DTO, or between a model and its persisted
+form. An adapter's responsibility.
 _Avoid_: mapping, marshalling
 
 **Message**:
-The wire representation crossing a hexagon's boundary, distinct from the model
-the core reasons about. Conversion between the two is the adapter's job.
-_Avoid_: DTO, entity, model
+The DTO crossing a hexagon's boundary. Distinct from the model the core reasons
+about; conversion between the two is the adapter's job.
+_Avoid_: entity, model
 
 ## Language
 
@@ -138,7 +148,7 @@ _Avoid_: task, operation, instruction
 
 **Exchange**:
 A communication between processes within a turn.
-_Avoid_: message (message is the wire form, exchange is the domain concept)
+_Avoid_: message (message is the DTO, exchange is the domain concept)
 
 **Turn**:
 A round of computation: a step plus the exchanges it produces.
