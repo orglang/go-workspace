@@ -17,7 +17,27 @@
 - `sdk`: Компонент, реализующий SDK (сюда клонируется `github.com/orglang/go-sdk`)
 - `engine`: Компонент, реализующий рантайм (сюда клонируется `github.com/orglang/go-engine`)
 - `stack`: System level definition
+- `docs/adr`: Архитектурные решения (architecture decision records)
+- `docs/agents`: Контекст для агентов, не вошедший в этот файл
+- `GLOSSARY.md`: Контролируемый словарь терминов
 - `taskfile.yaml`: Корневой taskfile проекта
+
+## Когда и куда смотреть
+
+- `docs/adr/`: читать **перед** тем как пересечь границу пакета — создать
+  `core/`/`adapter/`, завести зависимость на SDK или конкретный toolkit, вынести
+  имя таблицы SQL в agnostic код, перенести вызов в порт. Решение уже принятое не
+  переигрывать молча: либо следуешь ему, либо пишешь новое ADR сюда же, superseding
+  старое. ADR 0010 — это шаблон такой миграции, а не теория.
+- `GLOSSARY.md`: читать **перед** тем как назвать что-либо — идентификатор, тест,
+  текст коммита. Имя берётся отсюда, а не от соседнего кода. Словарь
+  переопределяет привычную терминологию: `API` — driving port, `Repo` — driven
+  port, `core`/`adapter` вместо «чистый слой» и «инфраструктура», «value key»
+  вместо «hash».
+- Где что лежит: решения и словарь — **здесь**, в рабочем пространстве
+  (`go-workspace`), код, который они описывают, — в `engine/`. Агент, работающий
+  только в `engine/`, не найдёт их сам, а этот файл — единственная точка входа.
+  Раскладку «что в каком репозитории» держит раздел «Структура проекта» выше.
 
 ## Структура компонента
 
@@ -73,14 +93,16 @@
 
 ### Toolkit agnostic
 
+Файл agnostic тогда и только тогда, когда он не импортирует ни SDK
+(`github.com/orglang/go-sdk`), ни конкретный toolkit. Имя файла ничего не решает:
+`tc.go` в `adt/identity` agnostic, а `tc.go` в `pool/typeexp` — нет.
+
 - `core.go`: Pure domain logic
     - Domain models (core models)
     - API interfaces (primary ports)
     - Service structs (core behaviors)
 - `me.go`: Pure message exchange (ME) logic
     - Message related DTO's (edge models)
-- `vp.go`: Pure view presentation (VP) logic
-    - View related DTO's (edge models)
 - `ds.go`: Pure data storage (DS) logic
     - Data related DTO's (edge models)
     - Repository interfaces (secondary ports)
@@ -91,19 +113,35 @@
     - Config related DTO's (edge models)
 - `tc.go`: Pure type conversion (TC) logic
     - Domain to domain conversions
-    - Domain to message conversions and vice versa
-    - Domain to data conversions and vice versa
+
+`vp.go` в этот список не входит: view models несут теги `form:`/`json:`, то есть
+это wire models, а они принадлежат toolkit specific. У `tc.go` доменные
+конверсии agnostic, а конверсии в DTO SDK и обратно — нет.
 
 ### Toolkit specific
 
 - `di_fx.go`: Fx (dependency injection library) specific component definitions
 - `me_echo.go`: Echo (web framework) specific controller definitions (primary adapters)
+- `vp.go`: View presentation (VP) logic — view models с тегами `form:`/`json:`
 - `vp_echo.go`: Echo (web framework) specific presenter definitions (primary adapters)
 - `me_resty.go`: Resty (HTTP library) specific client definitions (secondary adapters for external use)
 - `ds_pgx.go`: pgx (PostgreSQL driver and toolkit) specific DAO definitions (secondary adapters for internal use)
 - `iv_ozzo.go`: Ozzo (validation library) specific validation definitions
+- `tc.go`: Type conversion (TC) logic для моделей, которые конвертируются в DTO SDK и обратно
 - `tc_goverter.go`: Goverter (type conversion tool) specific conversion definitions
 - `vp/bs5/*.html`: Go's built-in `html/template` and Bootstrap 5 (frontend toolkit) specific presentation definitions
+
+Проверяемое доказательство: все семь файлов ниже импортируют
+`github.com/orglang/go-sdk`, поэтому лежат на toolkit specific стороне границы.
+
+```
+pool/typeexp/tc.go    proc/typeexp/tc.go    pool/termexp/tc.go
+proc/termexp/tc.go    prog/tc.go            proc/typedef/vp.go
+proc/termdec/vp.go
+```
+
+При разделении пакета на `core/` и `adapter/` `vp.go` и такой `tc.go` уезжают в
+`adapter/` — см. ADR 0005 `docs/adr/0005-ports-cross-boundaries.md`.
 
 ## Структура моделей
 
