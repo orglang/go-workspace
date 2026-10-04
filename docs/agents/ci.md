@@ -14,12 +14,37 @@ and development as:
 
 The repository containing the change owns the GitHub event adapter:
 
-- `go-engine` owns `pull_request` and post-merge triggers;
-- its caller workflow invokes the reusable workflow from `go-workspace`;
+- `go-engine` owns `pull_request` and `merge_group` triggers;
+- its caller workflows invoke the reusable stage workflows from `go-workspace`;
 - the caller passes the **exact engine revision under test**;
 - the reusable workflow must never silently substitute `main` for the supplied engine revision.
 
-This split is required because GitHub Actions events are scoped to the repository containing the workflow. A workflow stored only in `go-workspace` cannot directly receive a `pull_request` event from `go-engine`.
+This split is required because GitHub Actions events are scoped to the repository containing the workflow. A workflow stored only in `go-workspace` cannot directly receive a `pull_request` or `merge_group` event from `go-engine`.
+
+### PR and merge-queue flow
+
+The intended `go-engine` event flow is:
+
+```
+Draft PR
+  └─ opened / synchronize
+       ↓
+    sources
+
+Ready for review
+  └─ ready_for_review
+       ↓
+    binaries
+
+Merge queue
+  └─ merge_group
+       ↓
+    sources + binaries
+```
+
+`sources` is the fast modification-stage check and runs throughout the PR lifecycle. `binaries` is the stabilization-stage check and starts when a PR is ready for review. Both stages are re-evaluated for a merge-group candidate so that the merge queue validates the actual merge result.
+
+A post-merge `binaries` workflow is intentionally not required: the merge-group run is the pre-merge verification of the merge candidate. A separate post-merge workflow should be introduced only when the finalization stage requires checks that are meaningfully different from the merge-queue gates.
 
 ## Reusable workflow contract
 
@@ -29,22 +54,16 @@ The reusable workflow is the stable interface between repository-local event ada
 
 | Input | Required | Meaning |
 | --- | --- | --- |
-| `engine_ref` | yes | Exact `go-engine` commit SHA or ref to test. PR callers should pass the PR head SHA. |
+| `engine_ref` | yes | Exact `go-engine` commit SHA or ref to test. PR and merge-group callers must pass the revision represented by the event. |
 | `sdk_ref` | yes | Exact `go-sdk` commit SHA or ref to check out. Defaults are chosen by the caller, not inferred from the engine ref. |
 | `workspace_ref` | yes | `go-workspace` revision containing the reusable workflow and Taskfiles. |
-| `stage` | yes | CI stage to execute: `sources`, `binaries`, `distros`, or `finalization`. |
+| `stage` | — | Reserved for a future unified stage dispatcher. The current stage-specific reusable workflows select their stage by filename (`sources.yaml`, `binaries.yaml`, etc.). |
 
 The caller may pass repository names explicitly when a fork or alternate repository is under test; the default production repositories are `orglang/go-engine` and `orglang/go-sdk`.
 
 ### Outputs
 
-The reusable workflow exposes a small, stable result surface:
-
-- `result`: `success` or `failure`;
-- `stage`: the executed stage;
-- `engine_sha`: the exact engine commit tested.
-
-Detailed diagnostics remain in the individual GitHub Actions jobs. Callers must not parse log text to determine success.
+Stage-specific workflows currently use the workflow/job result reported by GitHub Actions itself. A unified result interface (`result`, `stage`, `engine_sha`) remains a target for the reusable-workflow contract; callers must not parse log text to determine success.
 
 ### Permissions and secrets
 
@@ -87,13 +106,15 @@ The `gear` pipeline follows the same artifact vocabulary where a corresponding s
 
 ## Existing workflow mapping
 
-The current `go-engine` workflows are mapped into the new model as follows:
+The intended `go-engine` workflow mapping is:
 
-| Current workflow | Current command | New contract |
-| --- | --- | --- |
-| `.github/workflows/main_proposal.yaml` | `task stack:commons` | PR event adapter; coverage is retained through the `distros`/e2e implementation. |
-| `.github/workflows/main_revision.yaml` | `task binaries` | post-merge/finalization path; binary publication remains covered explicitly. |
-| `.github/workflows/task_revision.yaml` | `task distros` | PR/task-branch verification; migrate into the reusable `distros` stage without losing e2e coverage. |
+| Caller workflow | Events | Stage / command | New contract |
+| --- | --- | --- | --- |
+| `.github/workflows/sources.yaml` | `opened`, `reopened`, `synchronize`, `ready_for_review` | reusable `sources` stage | Fast PR source checks; also run for the merge-group candidate. |
+| `.github/workflows/binaries.yaml` | `ready_for_review`, `merge_group` | reusable `binaries` stage | Stabilization checks before merge and on the merge-group candidate. |
+| `.github/workflows/main_proposal.yaml` | PR / `merge_group` | `task stack:commons` | Existing stack/e2e coverage; migrate to reusable `distros` without losing coverage. |
+
+There is intentionally no `main_revision.yaml` binary gate in the target design. Post-merge finalization is a separate concern and should not duplicate the merge-group `binaries` check.
 
 The migration must not delete an existing check merely because its implementation moves. Every retired caller workflow must have an explicit replacement in the new matrix.
 
