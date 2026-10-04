@@ -1,0 +1,25 @@
+name: app-changes
+description: Determine whether the current pull request changes the application
+
+outputs:
+  changed:
+    description: Whether the current change set changes the application
+    value: ${{ github.event_name != 'pull_request' || steps.filter.outputs.changed == 'true' }}
+
+runs:
+  using: composite
+  steps:
+    - name: Detect changes
+      id: filter
+      if: ${{ github.event_name == 'pull_request' }}
+      uses: dorny/paths-filter@v4
+      with:
+        filters: |
+          changed:
+            - 'app/**'
+            - 'db/**'
+            - 'lib/**'
+            - 'adt/**'
+            - 'proto/**'
+            - 'go.mod'
+            - 'go.sum'
