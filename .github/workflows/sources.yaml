@@ -3,8 +3,8 @@ name: sources
 on:
   workflow_call:
     inputs:
-      project_ref:
-        description: Exact project revision under test
+      engine_ref:
+        description: Exact engine revision under test
         required: true
         type: string
       sdk_ref:
@@ -32,7 +32,7 @@ jobs:
       - name: Checkout project
         uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.project_ref }}
+          ref: ${{ inputs.engine_ref }}
           repository: orglang/go-engine
           path: project
 
