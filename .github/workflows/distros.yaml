@@ -15,12 +15,18 @@ on:
         description: go-workspace revision providing this workflow and Taskfiles
         required: true
         type: string
+      run:
+        description: Whether to run the distros checks
+        required: false
+        default: true
+        type: boolean
 
 permissions:
   contents: read
 
 jobs:
   distros:
+    if: ${{ inputs.run }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
