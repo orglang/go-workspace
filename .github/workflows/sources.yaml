@@ -1,0 +1,49 @@
+name: sources
+
+on:
+  workflow_call:
+    inputs:
+      project_ref:
+        description: Exact project revision under test
+        required: true
+        type: string
+      sdk_ref:
+        description: Exact go-sdk revision to test
+        required: true
+        type: string
+      workspace_ref:
+        description: go-workspace revision providing this workflow and Taskfiles
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  sources:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout workspace
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.workspace_ref }}
+          repository: orglang/go-workspace
+
+      - name: Checkout project
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.project_ref }}
+          repository: orglang/go-engine
+          path: project
+
+      - name: Checkout SDK
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.sdk_ref }}
+          repository: orglang/go-sdk
+          path: sdk
+
+      - uses: ./.github/actions/setup-tools
+
+      - name: Run sources checks
+        run: task sources
