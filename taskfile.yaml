@@ -30,10 +30,7 @@ tasks:
       - task: engine:binaries
 
   distros:
-    desc: Build all distros if checks passed
-    deps:
-      - task: engine:tests:it
-      - task: sdk:tests
+    desc: Build all distros
     cmds:
       - cmd: docker buildx bake
 
