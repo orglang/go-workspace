@@ -34,7 +34,7 @@ jobs:
         with:
           ref: ${{ inputs.engine_ref }}
           repository: orglang/go-engine
-          path: project
+          path: engine
 
       - name: Checkout SDK
         uses: actions/checkout@v6
