@@ -1,6 +1,5 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["superpowers@git+https://github.com/obra/superpowers.git"],
   "instructions": ["AGENTS.md"],
   "lsp": {
     "go": {
@@ -13,8 +12,35 @@
     "paths": [".opencode/skills"]
   },
   "permission": {
-    "lsp": "allow",
-    "edit": "ask",
-    "bash": { "git *": "allow", "*": "ask" }
+    "bash": {
+      "gofmt -l*": "allow",
+      "gofmt -s -l*": "allow",
+      "go build*": "allow",
+      "go test*": "allow",
+      "go generate*": "allow",
+
+      "task --list*": "allow",
+      "task -l*": "allow",
+      "task sources": "allow",
+      "task src": "allow",
+      "task binaries": "allow",
+      "task bins": "allow",
+      "task engine:sources": "allow",
+      "task engine:src": "allow",
+      "task engine:binaries": "allow",
+      "task engine:tests:unit": "allow",
+      "task engine:tests:it": "allow",
+      "task engine:linter:*": "allow",
+      "task engine:generator:*": "allow",
+
+      "psql*": "ask",
+      "docker buildx bake*": "ask",
+      "task distros": "ask",
+      "task stack:*": "ask",
+      "task stand:*": "ask",
+      "task engine:tests:e2e": "ask",
+
+      "docker compose down*": "ask"
+    }
   }
 }
