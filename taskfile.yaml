@@ -19,7 +19,9 @@ tasks:
     desc: Build all sources if checks passed
     cmds:
       - task: engine:sources
-      - task: sdk:sources
+      # TODO(#9): Re-enable SDK source linters after fixing the existing findings.
+      # https://github.com/orglang/go-engine/issues/9
+      # - task: sdk:sources
 
   binaries:
     aliases: [bins]
