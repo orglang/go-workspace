@@ -23,26 +23,25 @@ Related repositories: `github.com/orglang/rationale`, `github.com/orglang/go-sdk
 
 - This file applies repository-wide.
 - More specific instruction files, when present, apply to their subtree.
-- `docs/agents/domain.md` defines how agents consume the glossary and ADRs.
+- Read `docs/agents/` guidance relevant to the task; start with `development.md`.
 - Task-specific workflows belong in `.opencode/skills/`; do not duplicate them here.
 
 ## Before changing code
 
-1. Read `GLOSSARY.md` and the relevant `docs/adr/` entries.
-2. Read the applicable guidance under `docs/agents/`.
-3. Inspect the current worktree/diff before editing; preserve unrelated user work.
-4. Identify the smallest change that satisfies the request.
+1. Inspect the current worktree/diff and preserve unrelated work.
+2. Read `GLOSSARY.md` (or `GLOSSARY-MAP.md` where present) and relevant ADRs.
+3. Read the applicable guidance under `docs/agents/`.
+4. Identify the smallest coherent change that satisfies the request.
 
-## Architecture rules
+## Non-negotiable architecture rules
 
 - Preserve the core/adapter boundary and dependency direction.
 - Toolkit-agnostic code must not import the SDK or a specific toolkit.
 - DTOs and wire concerns belong on adapter/toolkit-specific sides.
-- Cross-boundary types are exported as required by ADR 0005.
-- Use the repository's model naming conventions: `<model>Ref`, `Spec`, `Rec`, `Mod`, `Snap`.
-- Use glossary terminology rather than inventing synonyms.
+- Types crossing the `core/adapter` boundary are exported as required by ADR 0005.
+- Use established model suffixes (`Ref`, `Spec`, `Rec`, `Mod`, `Snap`) and glossary terminology.
 
-See `docs/agents/architecture.md` for the detailed boundary and package rules.
+See `docs/agents/architecture.md`.
 
 ## Scope and compatibility
 
@@ -56,44 +55,36 @@ See `docs/agents/compatibility.md` and `docs/agents/dependencies.md`.
 
 ## Testing and generated code
 
-- Test behavior, not changed line count.
-- Add regression coverage for bugs.
-- Use integration/e2e tests when the real boundary is what matters; do not weaken them merely to simplify the change.
-- Never delete or weaken a test just to make CI pass.
-- Never edit generated files manually; update the generator/input and regenerate reproducibly.
+- Test behavior and contracts, not changed line count.
+- Add regression coverage for reproducible bugs.
+- Use integration/e2e tests when the real boundary is what matters.
+- Do not weaken meaningful tests merely to make CI pass.
+- Never hand-edit generated output; update its generator/input and regenerate reproducibly.
 
 See `docs/agents/testing.md` and `docs/agents/generated-code.md`.
 
-## Security and destructive operations
+## Security and Git safety
 
-- Never expose, copy, commit, or log secrets, tokens, credentials, private keys, or sensitive environment data.
+- Never expose, copy, commit, or log secrets or sensitive environment data.
 - Do not use production credentials for local development.
 - Do not disable security checks to make a change pass.
-- Treat database deletion, `docker compose down -v`, `git reset --hard`, `git clean -fd`, force-pushes, resource deletion, and package publication as destructive operations requiring explicit authorization.
-
-See `docs/agents/security.md`.
-
-## Git and PR safety
-
-- Never write directly to `main`/trunk; use a feature/task branch and PR.
+- Destructive operations require explicit authorization.
+- Never write directly to `main`/trunk; use a branch and PR.
 - Do not amend, rewrite, squash, force-push, or discard existing work unless explicitly requested.
-- Do not modify git config, skip hooks, use interactive `-i` operations, or create empty commits unless explicitly requested.
-- Before a commit, inspect status, diff, and relevant history; stage only intended files.
-- Do not create commits automatically unless the user explicitly asks for a commit.
-- After updating a PR, inspect CI status and report failures/skips rather than assuming success.
+- Do not create commits automatically unless the user explicitly asks for one.
 
-See `docs/agents/git.md` and `docs/agents/ci.md`.
+See `docs/agents/security.md` and `docs/agents/git.md`.
 
 ## Canonical development commands
 
-Prefer the repository's Taskfiles and stage-appropriate entrypoints:
+Prefer repository Taskfiles and stage-appropriate entrypoints:
 
 - `task sources`, `task engine:sources`
 - `task binaries`, `task engine:binaries`
 - `task engine:tests:unit`, `task engine:tests:it`, `task engine:tests:e2e`
 - `task distros`
 
-If no suitable canonical task exists, use the underlying direct command only when safe and explain why. Do not invent a parallel command chain.
+If no suitable canonical task exists, use the underlying direct command only when safe and explain why.
 
 ## Definition of done
 
@@ -103,14 +94,12 @@ A change is complete when:
 2. Relevant tests and canonical checks pass, or failures are explicitly reported.
 3. Formatting/static-analysis/generation requirements are satisfied.
 4. No unrelated files or behavior changed.
-5. Architecture/compatibility documentation is updated when the change warrants it.
+5. Documentation is updated when the change warrants it.
 6. The final diff contains only intended changes.
-7. PR/CI state has been checked when applicable.
+7. PR/CI state is checked when applicable.
 
-## Development stages
-
-Use the repository's existing stages as a coordination model:
+The development coordination model is:
 
 `modification` → `stabilization` → `verification` → `finalization`.
 
-The detailed CI matrix and stage gates are in `docs/agents/ci.md`.
+See `docs/agents/ci.md` for stage gates and CI details.
