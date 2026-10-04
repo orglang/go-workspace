@@ -3,8 +3,8 @@ description: Determine whether the current pull request changes CI, tests, or to
 
 outputs:
   changed:
-    description: Whether the current pull request changes this category
-    value: ${{ steps.result.outputs.changed }}
+    description: Whether the current change set changes CI, tests, or tooling
+    value: ${{ github.event_name != 'pull_request' || steps.filter.outputs.changed == 'true' }}
 
 runs:
   using: composite
@@ -22,17 +22,3 @@ runs:
             - 'revive.toml'
             - 'staticcheck.conf'
             - '.gitignore'
-
-    - name: Set result
-      id: result
-      shell: bash
-      env:
-        FILTER_CHANGED: ${{ steps.filter.outputs.changed }}
-      run: |
-        set -euo pipefail
-
-        if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
-          echo "changed=${FILTER_CHANGED}" >> "${GITHUB_OUTPUT}"
-        else
-          echo "changed=true" >> "${GITHUB_OUTPUT}"
-        fi
