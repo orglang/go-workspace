@@ -15,12 +15,18 @@ on:
         description: go-workspace revision providing this workflow and Taskfiles
         required: true
         type: string
+      run:
+        description: Whether to run the binaries checks
+        required: false
+        default: true
+        type: boolean
 
 permissions:
   contents: read
 
 jobs:
   binaries:
+    if: ${{ inputs.run }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout workspace
