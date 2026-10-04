@@ -1,0 +1,36 @@
+name: doc-changes
+description: Determine whether the current pull request changes documentation
+
+outputs:
+  changed:
+    description: Whether the current pull request changes this category
+    value: ${{ steps.result.outputs.changed }}
+
+runs:
+  using: composite
+  steps:
+    - name: Detect changes
+      id: filter
+      if: ${{ github.event_name == 'pull_request' }}
+      uses: dorny/paths-filter@v4
+      with:
+        filters: |
+          changed:
+            - '*.md'
+            - '**/*.md'
+            - 'docs/**'
+            - 'LICENSE'
+
+    - name: Set result
+      id: result
+      shell: bash
+      env:
+        FILTER_CHANGED: ${{ steps.filter.outputs.changed }}
+      run: |
+        set -euo pipefail
+
+        if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
+          echo "changed=${FILTER_CHANGED}" >> "${GITHUB_OUTPUT}"
+        else
+          echo "changed=true" >> "${GITHUB_OUTPUT}"
+        fi
