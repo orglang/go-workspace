@@ -1,0 +1,52 @@
+name: distros
+
+on:
+  workflow_call:
+    inputs:
+      engine_ref:
+        description: Exact go-engine revision under test
+        required: true
+        type: string
+      sdk_ref:
+        description: Exact go-sdk revision to test
+        required: true
+        type: string
+      workspace_ref:
+        description: go-workspace revision providing this workflow and Taskfiles
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  distros:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout workspace
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.workspace_ref }}
+          repository: orglang/go-workspace
+
+      - name: Checkout engine
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.engine_ref }}
+          repository: orglang/go-engine
+          path: engine
+
+      - name: Checkout SDK
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.sdk_ref }}
+          repository: orglang/go-sdk
+          path: sdk
+
+      - uses: ./.github/actions/setup-tools
+
+      - name: Run distros checks
+        run: |
+          task distros
+          task stack:commons
