@@ -3,7 +3,7 @@
 CI has two related models:
 
 - development stages: `modification → stabilization → verification → finalization`;
-- delivery stages: `check1 → prepare → check2 → publish`.
+- delivery stages: `check1 → prepare → install → check2 → publish`.
 
 The canonical artifact path is:
 
@@ -22,12 +22,20 @@ Prefer the repository Taskfiles that correspond to the stage. A local pass does 
 
 ## Delivery stages
 
+The general artifact delivery model is:
+
+- **check1**: fast preconditions for the artifact.
+- **prepare**: create or prepare the artifact consumed by check2. For binary artifacts, this is typically **build**.
+- **install**: place the prepared artifact into the local repository or store.
+- **check2**: authoritative verification of the installed artifact.
+- **publish**: publish the verified artifact to the remote repository.
+
 For `go-engine`, source delivery within this model is enforced locally by versioned Git hooks:
 
-- **sources:prepare**: `pre-commit → task sources:prepare`; format/fix and stage source changes, generate source artifacts and stage them, then run static analysis.
-- **commit**: create the source artifact with `git commit`.
-- **sources:verify**: `pre-push → task sources:verify`; verify the current HEAD with unit tests.
-- **publish**: `git push`.
+- **sources:prepare**: `pre-commit → task sources:prepare`; format/fix, generate source artifacts, stage the resulting source artifact, and run source checks.
+- **install**: `git commit`; record the prepared source artifact in the local Git repository history.
+- **check2 / sources:verify**: `pre-push → task sources:verify`; verify the current HEAD with unit tests.
+- **publish**: `git push`; publish the verified commit to the remote repository.
 
 The hooks are installed explicitly with `task hooks:install`. Installation is never automatic. Repositories may still bypass hooks with normal Git mechanisms; the delivery model does not require special `--no-verify` handling.
 
@@ -57,7 +65,7 @@ modify
   ↓
 sources:prepare — pre-commit
   ↓
-commit — git commit
+install — git commit
   ↓
 sources:verify — pre-push
   ↓
