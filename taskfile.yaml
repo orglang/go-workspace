@@ -45,23 +45,28 @@ tasks:
     desc: Start specified stand
     vars:
       OPS: '{{index .MATCH 0}}'
-      COMPOSE: 'docker compose --file ops/{{index .DB .OPS}}.compose.yaml --env-file ops/{{.OPS}}/.env'
-      COMPOSE_ENGINE: 'docker compose --file ops/{{index .DB .OPS}}.compose.yaml --file ops/engine.compose.yaml --env-file ops/{{.OPS}}/.env'
     dir: stack
     cmds:
       - cmd: >-
-          {{.COMPOSE}}
+          docker compose
+          --file ops/{{index .DB .OPS}}.compose.yaml
+          --env-file ops/{{.OPS}}/.env
           up
           --remove-orphans
           --pull missing
           --quiet-pull
           --detach
       - cmd: >-
-          {{.COMPOSE}}
+          docker compose
+          --file ops/{{index .DB .OPS}}.compose.yaml
+          --env-file ops/{{.OPS}}/.env
           wait
           schema
       - cmd: >-
-          {{.COMPOSE_ENGINE}}
+          docker compose
+          --file ops/{{index .DB .OPS}}.compose.yaml
+          --file ops/engine.compose.yaml
+          --env-file ops/{{.OPS}}/.env
           up
           --remove-orphans
           --pull missing
