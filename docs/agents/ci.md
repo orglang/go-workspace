@@ -22,10 +22,16 @@ Prefer the repository Taskfiles that correspond to the stage. A local pass does 
 
 ## Delivery stages
 
-- **check1**: fast preconditions for the artifact.
-- **prepare**: create the artifact or runtime state consumed by check2.
-- **check2**: authoritative verification of the artifact.
-- **publish**: runs only after required checks succeed.
+For `go-engine`, source delivery is enforced locally by versioned Git hooks:
+
+- **check1**: `pre-commit → task check1`; format/fix and stage source changes, generate source artifacts and stage them, then run static analysis.
+- **prepare**: create the artifact with `git commit`.
+- **check2**: `pre-push → task check2`; verify the current HEAD with unit tests.
+- **publish**: `git push`.
+
+The hooks are installed explicitly with `task hooks:install`. Installation is never automatic. Repositories may still bypass hooks with normal Git mechanisms; the delivery model does not require special `--no-verify` handling.
+
+`task sources:generate` performs only goverter generation and does not modify the Git index. `sources` remains an alias for `check1`.
 
 A running job is not a success. A skipped internal stage job can be intentional when its caller passes `run: false`.
 
@@ -44,18 +50,25 @@ GitHub Actions events are scoped to the repository containing the workflow, so e
 
 ## PR and merge-queue flow
 
-The intended flow is:
+The source artifact delivery flow is:
 
 ```
-PR updates
-  └─ sources
-
-Ready for review
-  └─ binaries
-
-Merge queue
-  └─ sources + binaries + distros
+modify
+  ↓
+check1 — pre-commit
+  ↓
+prepare — git commit
+  ↓
+check2 — pre-push
+  ↓
+publish — git push
 ```
+
+CI retains a protective, non-required source sanity check on `pull_request.opened`, including draft PRs. It checks formatting and unit tests only. It does not run on `synchronize`, `reopened`, `ready_for_review`, or `merge_group`.
+
+The full Sources CI stage is not part of the `go-engine` PR or merge-queue delivery flow.
+
+For merge candidates, required Binaries and Distros caller checks remain the delivery gates. `merge_group` does not expect a removed Sources check.
 
 The merge-group run verifies the actual merge candidate. Do not add a redundant post-merge binary gate merely to repeat that verification.
 
@@ -94,10 +107,13 @@ Keep workflow permissions least-privilege. Prefer `contents: read`; request addi
 ## Stage-specific invariants
 
 - The artifact graph remains `sources → binaries → distros`.
+- Source delivery is gated locally by `check1` and `check2`.
+- The protective PR-opened source sanity check is non-required and does not replace the local delivery gate.
 - Required checks must remain stable while their implementation moves.
 - Moving a workflow must not silently remove an existing required check; provide an explicit replacement.
 - Event-specific policy belongs in caller inputs, not in caller-job skipping.
 - CI should test the exact revisions that the candidate is intended to merge.
+- Multi-ref push handling is outside the `check2` contract.
 
 ## Verification after a PR update
 
