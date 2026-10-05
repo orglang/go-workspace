@@ -30,19 +30,19 @@ The general artifact delivery model is:
 - **check2**: authoritative verification of the installed artifact.
 - **publish**: publish the verified artifact to the remote repository.
 
-For `go-engine`, source delivery within this model is enforced locally by versioned Git hooks:
+For `go-engine`, the source mapping is:
 
-- **sources:prepare**: format and generate the source artifact. It does not modify the Git index.
-- **sources:check**: the `check1` stage for sources; `pre-commit → task sources:check` verifies the prepared source artifact before the commit is created.
-- **install**: `git add + git commit`; stage the prepared source artifact and record it in the local Git repository history.
-- **check2 / sources:verify**: `pre-push → task sources:verify`; verify the current HEAD with unit tests.
-- **publish**: `git push`; publish the verified commit to the remote repository.
+| Delivery stage | go-engine |
+| --- | --- |
+| prepare | `sources:prepare` — format and generate the source artifact |
+| check1 | `sources:check` — `pre-commit` runs the linters during `git commit` |
+| install | `git add + git commit` |
+| check2 | `sources:verify` — `pre-push` runs unit tests |
+| publish | `git push` |
 
-The hooks are installed explicitly with `task hooks:install`. Installation is never automatic. Repositories may still bypass hooks with normal Git mechanisms; the delivery model does not require special `--no-verify` handling.
+Hooks are installed with `task hooks:install`. `task sources:generate` performs goverter generation without changing the Git index.
 
-`task sources:generate` performs only goverter generation and does not modify the Git index.
-
-A running job is not a success. A skipped internal stage job can be intentional when its caller passes `run: false`.
+A running job is a success when its caller stage reports success; internal stage jobs may be disabled through the `run` input.
 
 ## Repository ownership
 
@@ -59,35 +59,10 @@ GitHub Actions events are scoped to the repository containing the workflow, so e
 
 ## PR and merge-queue flow
 
-The source artifact delivery stages are:
+CI retains a protective Sources Check on `pull_request.opened`, including draft PRs. It checks formatting and unit tests and serves as an early signal for source changes.
 
-```
-prepare
-  ↓
-check1
-  ↓
-install
-  ↓
-check2
-  ↓
-publish
-```
+For merge candidates, required Binaries and Distros caller checks remain the delivery gates. The merge-group run verifies the actual merge candidate.
 
-For `go-engine`, the Git implementation is:
-
-- `sources:prepare` prepares the source artifact;
-- `git add + git commit` performs `install`;
-- `pre-commit` runs `sources:check` during `git commit`, before the commit is created;
-- `pre-push` runs `sources:verify` before publishing;
-- `git push` performs `publish`.
-
-CI retains a protective, non-required Sources Check on `pull_request.opened`, including draft PRs. It checks formatting and unit tests only. It does not run on `synchronize`, `reopened`, `ready_for_review`, or `merge_group`.
-
-The full Sources CI stage is not part of the `go-engine` PR or merge-queue delivery flow.
-
-For merge candidates, required Binaries and Distros caller checks remain the delivery gates. `merge_group` does not expect a removed Sources check.
-
-The merge-group run verifies the actual merge candidate. Do not add a redundant post-merge binary gate merely to repeat that verification.
 
 ## Stable required checks
 
@@ -123,14 +98,12 @@ Keep workflow permissions least-privilege. Prefer `contents: read`; request addi
 
 ## Stage-specific invariants
 
-- The artifact graph remains `sources → binaries → distros`.
-- Source delivery is gated locally by `sources:prepare`, `sources:check`, and `sources:verify`.
-- The protective PR-opened Sources Check is non-required and does not replace the local delivery gate.
-- Required checks must remain stable while their implementation moves.
-- Moving a workflow must not silently remove an existing required check; provide an explicit replacement.
-- Event-specific policy belongs in caller inputs, not in caller-job skipping.
-- CI should test the exact revisions that the candidate is intended to merge.
-- Multi-ref push handling is outside the `sources:verify` contract.
+- The artifact graph is `sources → binaries → distros`.
+- Source delivery uses `sources:prepare`, `sources:check`, and `sources:verify`.
+- Required checks keep stable caller-level names while their implementation moves.
+- Event-specific policy is expressed through caller inputs.
+- CI tests the exact revisions intended for merge.
+- `sources:verify` covers the current single-ref push flow.
 
 ## Verification after a PR update
 
