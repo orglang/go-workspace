@@ -3,7 +3,7 @@
 CI has two related models:
 
 - development stages: `modification → stabilization → verification → finalization`;
-- delivery stages: `sources:prepare → commit → sources:verify → publish`.
+- delivery stages: `check1 → prepare → check2 → publish`.
 
 The canonical artifact path is:
 
