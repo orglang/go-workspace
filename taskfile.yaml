@@ -32,6 +32,7 @@ tasks:
   distros:
     desc: Build all distros
     cmds:
+      - task: engine:sources
       - cmd: docker buildx bake
 
   stack:*:
