@@ -10,6 +10,8 @@ target "engine" {
 }
 
 target "postgres" {
+  cache-from = ["type=gha"]
+  cache-to = ["type=gha,mode=max"]
   dockerfile = "liquibase.Dockerfile"
   tags = ["orglang/pg-operator:latest"]
   context = "engine/db/postgres"
