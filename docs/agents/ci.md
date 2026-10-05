@@ -22,7 +22,20 @@ Prefer the repository Taskfiles that correspond to the stage. A local pass does 
 
 ## Delivery stages
 
-For `go-engine`, source delivery is enforced locally by versioned Git hooks:
+The general artifact delivery flow is:
+
+```
+PR updates
+  └─ sources
+
+Ready for review
+  └─ binaries
+
+Merge queue
+  └─ sources + binaries + distros
+```
+
+For `go-engine`, source delivery within that model is enforced locally by versioned Git hooks:
 
 - **sources:prepare**: `pre-commit → task sources:prepare`; format/fix and stage source changes, generate source artifacts and stage them, then run static analysis.
 - **commit**: create the source artifact with `git commit`.
