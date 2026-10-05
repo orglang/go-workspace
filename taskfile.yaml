@@ -56,7 +56,12 @@ tasks:
           --pull missing
           --quiet-pull
           --detach
-      - cmd: docker compose wait schema
+      - cmd: >-
+          docker compose
+          --file ops/{{index .DB .OPS}}.compose.yaml
+          --env-file ops/{{.OPS}}/.env
+          wait
+          schema
       # - cmd: >-
       #     docker compose
       #     --file ops/{{index .DB .OPS}}.compose.yaml
