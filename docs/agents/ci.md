@@ -3,7 +3,7 @@
 CI has two related models:
 
 - development stages: `modification → stabilization → verification → finalization`;
-- delivery stages: `check1 → prepare → check2 → publish`.
+- delivery stages: `prepare → check1 → install → check2 → publish`.
 
 The canonical artifact path is:
 
@@ -22,12 +22,27 @@ Prefer the repository Taskfiles that correspond to the stage. A local pass does 
 
 ## Delivery stages
 
-- **check1**: fast preconditions for the artifact.
-- **prepare**: create the artifact or runtime state consumed by check2.
-- **check2**: authoritative verification of the artifact.
-- **publish**: runs only after required checks succeed.
+The general artifact delivery model is:
 
-A running job is not a success. A skipped internal stage job can be intentional when its caller passes `run: false`.
+- **prepare**: create or prepare the artifact.
+- **check1**: first authoritative verification of the prepared artifact.
+- **install**: place the prepared artifact into the local repository or store.
+- **check2**: authoritative verification of the installed artifact.
+- **publish**: publish the verified artifact to the remote repository.
+
+For `go-engine`, the source mapping is:
+
+| Delivery stage | go-engine |
+| --- | --- |
+| prepare | `sources:prepare` — format and generate the source artifact |
+| check1 | `sources:check` — `pre-commit` runs the linters during `git commit` |
+| install | `git add + git commit` |
+| check2 | `sources:verify` — `pre-push` runs unit tests |
+| publish | `git push` |
+
+Hooks are installed with `task hooks:install`. `task sources:generate` performs goverter generation without changing the Git index.
+
+A running job is a success when its caller stage reports success; internal stage jobs may be disabled through the `run` input.
 
 ## Repository ownership
 
@@ -44,20 +59,10 @@ GitHub Actions events are scoped to the repository containing the workflow, so e
 
 ## PR and merge-queue flow
 
-The intended flow is:
+CI retains a protective Sources Check on `pull_request.opened`, including draft PRs. It checks formatting and unit tests and serves as an early signal for source changes.
 
-```
-PR updates
-  └─ sources
+For merge candidates, required Binaries and Distros caller checks remain the delivery gates. The merge-group run verifies the actual merge candidate.
 
-Ready for review
-  └─ binaries
-
-Merge queue
-  └─ sources + binaries + distros
-```
-
-The merge-group run verifies the actual merge candidate. Do not add a redundant post-merge binary gate merely to repeat that verification.
 
 ## Stable required checks
 
@@ -93,11 +98,12 @@ Keep workflow permissions least-privilege. Prefer `contents: read`; request addi
 
 ## Stage-specific invariants
 
-- The artifact graph remains `sources → binaries → distros`.
-- Required checks must remain stable while their implementation moves.
-- Moving a workflow must not silently remove an existing required check; provide an explicit replacement.
-- Event-specific policy belongs in caller inputs, not in caller-job skipping.
-- CI should test the exact revisions that the candidate is intended to merge.
+- The artifact graph is `sources → binaries → distros`.
+- Source delivery uses `sources:prepare`, `sources:check`, and `sources:verify`.
+- Required checks keep stable caller-level names while their implementation moves.
+- Event-specific policy is expressed through caller inputs.
+- CI tests the exact revisions intended for merge.
+- `sources:verify` covers the current single-ref push flow.
 
 ## Verification after a PR update
 
