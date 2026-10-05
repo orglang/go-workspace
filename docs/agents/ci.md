@@ -59,21 +59,27 @@ GitHub Actions events are scoped to the repository containing the workflow, so e
 
 ## PR and merge-queue flow
 
-The source artifact delivery flow is:
+The source artifact delivery stages are:
 
 ```
-modify
+prepare
   ↓
-sources:prepare
+check1
   ↓
-git add + commit — install
+install
   ↓
-sources:check — pre-commit
+check2
   ↓
-sources:verify — pre-push
-  ↓
-publish — git push
+publish
 ```
+
+For `go-engine`, the Git implementation is:
+
+- `sources:prepare` prepares the source artifact;
+- `git add + git commit` performs `install`;
+- `pre-commit` runs `sources:check` during `git commit`, before the commit is created;
+- `pre-push` runs `sources:verify` before publishing;
+- `git push` performs `publish`.
 
 CI retains a protective, non-required Sources Check on `pull_request.opened`, including draft PRs. It checks formatting and unit tests only. It does not run on `synchronize`, `reopened`, `ready_for_review`, or `merge_group`.
 
