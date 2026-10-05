@@ -113,7 +113,7 @@ Keep workflow permissions least-privilege. Prefer `contents: read`; request addi
 - Moving a workflow must not silently remove an existing required check; provide an explicit replacement.
 - Event-specific policy belongs in caller inputs, not in caller-job skipping.
 - CI should test the exact revisions that the candidate is intended to merge.
-- Multi-ref push handling is outside the `check2` contract.
+- Multi-ref push handling is outside the `sources:verify` contract.
 
 ## Verification after a PR update
 
