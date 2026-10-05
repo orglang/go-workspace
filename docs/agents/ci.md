@@ -32,7 +32,8 @@ The general artifact delivery model is:
 
 For `go-engine`, source delivery within this model is enforced locally by versioned Git hooks:
 
-- **sources:prepare**: `pre-commit → task sources:prepare`; format/fix, generate source artifacts, stage the resulting source artifact, and run source checks.
+- **sources:check**: the `check1` stage for sources; run source linters before preparing the artifact.
+- **sources:prepare**: `pre-commit → task sources:prepare`; format/fix, generate source artifacts, and stage the resulting source artifact. The task invokes `sources:check` after preparation so the staged source artifact is checked before commit.
 - **install**: `git commit`; record the prepared source artifact in the local Git repository history.
 - **check2 / sources:verify**: `pre-push → task sources:verify`; verify the current HEAD with unit tests.
 - **publish**: `git push`; publish the verified commit to the remote repository.
@@ -115,7 +116,7 @@ Keep workflow permissions least-privilege. Prefer `contents: read`; request addi
 ## Stage-specific invariants
 
 - The artifact graph remains `sources → binaries → distros`.
-- Source delivery is gated locally by `sources:prepare` and `sources:verify`.
+- Source delivery is gated locally by `sources:check`, `sources:prepare`, and `sources:verify`.
 - The protective PR-opened Sources Check is non-required and does not replace the local delivery gate.
 - Required checks must remain stable while their implementation moves.
 - Moving a workflow must not silently remove an existing required check; provide an explicit replacement.
