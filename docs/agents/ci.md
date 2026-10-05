@@ -3,7 +3,7 @@
 CI has two related models:
 
 - development stages: `modification → stabilization → verification → finalization`;
-- delivery stages: `check1 → prepare → install → check2 → publish`.
+- delivery stages: `prepare → check1 → install → check2 → publish`.
 
 The canonical artifact path is:
 
@@ -24,17 +24,17 @@ Prefer the repository Taskfiles that correspond to the stage. A local pass does 
 
 The general artifact delivery model is:
 
-- **check1**: fast preconditions for the artifact.
-- **prepare**: create or prepare the artifact consumed by check2. For binary artifacts, this is typically **build**.
+- **prepare**: create or prepare the artifact.
+- **check1**: first authoritative verification of the prepared artifact.
 - **install**: place the prepared artifact into the local repository or store.
 - **check2**: authoritative verification of the installed artifact.
 - **publish**: publish the verified artifact to the remote repository.
 
 For `go-engine`, source delivery within this model is enforced locally by versioned Git hooks:
 
-- **sources:check**: the `check1` stage for sources; run source linters before preparing the artifact.
-- **sources:prepare**: `pre-commit → task sources:prepare`; format/fix, generate source artifacts, and stage the resulting source artifact. The task invokes `sources:check` after preparation so the staged source artifact is checked before commit.
-- **install**: `git commit`; record the prepared source artifact in the local Git repository history.
+- **sources:prepare**: format and generate the source artifact. It does not modify the Git index.
+- **sources:check**: the `check1` stage for sources; `pre-commit → task sources:check` verifies the prepared source artifact before the commit is created.
+- **install**: `git add + git commit`; stage the prepared source artifact and record it in the local Git repository history.
 - **check2 / sources:verify**: `pre-push → task sources:verify`; verify the current HEAD with unit tests.
 - **publish**: `git push`; publish the verified commit to the remote repository.
 
@@ -64,9 +64,11 @@ The source artifact delivery flow is:
 ```
 modify
   ↓
-sources:prepare — pre-commit
+sources:prepare
   ↓
-install — git commit
+git add + commit — install
+  ↓
+sources:check — pre-commit
   ↓
 sources:verify — pre-push
   ↓
@@ -116,7 +118,7 @@ Keep workflow permissions least-privilege. Prefer `contents: read`; request addi
 ## Stage-specific invariants
 
 - The artifact graph remains `sources → binaries → distros`.
-- Source delivery is gated locally by `sources:check`, `sources:prepare`, and `sources:verify`.
+- Source delivery is gated locally by `sources:prepare`, `sources:check`, and `sources:verify`.
 - The protective PR-opened Sources Check is non-required and does not replace the local delivery gate.
 - Required checks must remain stable while their implementation moves.
 - Moving a workflow must not silently remove an existing required check; provide an explicit replacement.
