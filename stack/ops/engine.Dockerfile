@@ -4,7 +4,7 @@ WORKDIR /orglang
 
 COPY . .
 
-RUN go build -o go-engine engine/app/main.go
+RUN go build -o go-engine ./engine/app
 
 FROM alpine
 
