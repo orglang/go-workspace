@@ -58,4 +58,3 @@ tasks:
           --pull missing
           --quiet-pull
           --detach
-          --wait
