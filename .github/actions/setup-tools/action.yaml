@@ -7,6 +7,10 @@ runs:
     - name: Setup go
       uses: actions/setup-go@v6.2.0
       with:
-        go-version: '1.27'
+        go-version-file: engine/go.mod
+        cache: true
+        cache-dependency-path: |
+          engine/go.sum
+          sdk/go.sum
     - name: Setup task
       uses: go-task/setup-task@v1

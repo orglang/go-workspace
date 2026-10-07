@@ -2,6 +2,9 @@
 !*/app
 !*/adt
 !*/lib
+!*/pool
+!*/proc
+!*/proto
 !*/go.mod
 !*/go.sum
 !go.work
