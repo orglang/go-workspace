@@ -55,13 +55,14 @@ jobs:
       - name: Setup Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: check1
-        run: |
-          task engine:tests:it
-          task sdk:tests
-
       - name: prepare
-        run: task distros
+        run: task engine:sources:generate
+
+      - name: check1
+        run: docker buildx bake --set '*.output=type=cacheonly'
+
+      - name: install
+        run: docker buildx bake --load
 
       - name: check2
         run: task stack:commons
