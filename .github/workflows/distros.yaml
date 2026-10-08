@@ -67,8 +67,18 @@ jobs:
       - name: check2
         run: task stack:commons
 
-      - name: PostgreSQL compose logs
-        if: ${{ always() }}
+      - name: PostgreSQL compose diagnostics
+        if: ${{ failure() }}
         run: |
-          docker compose -f stack/ops/postgres.compose.yaml ps -a || true
-          docker compose -f stack/ops/postgres.compose.yaml logs --no-color storage database schema || true
+          docker compose \
+            --file stack/ops/postgres.compose.yaml \
+            --env-file ops/commons/.env \
+            ps -a || true
+          docker compose \
+            --file stack/ops/postgres.compose.yaml \
+            --env-file ops/commons/.env \
+            logs --no-color storage database schema || true
+          docker compose \
+            --file stack/ops/postgres.compose.yaml \
+            --env-file ops/commons/.env \
+            up schema || true
