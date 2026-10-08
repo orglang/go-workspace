@@ -24,11 +24,11 @@ Prefer the repository Taskfiles that correspond to the stage. A local pass does 
 
 The general artifact delivery model is:
 
-- **prepare**: create or prepare the artifact.
-- **check1**: first authoritative verification of the prepared artifact.
-- **install**: place the prepared artifact into the local repository or store.
-- **check2**: authoritative verification of the installed artifact.
-- **publish**: publish the verified artifact to the remote repository.
+- **prepare**: create/build the artifact.
+- **check1**: lightweight validation or smoke of the artifact in isolation; it must not require the target environment.
+- **install**: materialize/deploy the artifact into the target local environment.
+- **check2**: E2E verification of the installed artifact in that environment.
+- **publish**: optionally publish the verified artifact to an external destination.
 
 Each artifact maps these stages to its own concrete commands and storage mechanism. The lifecycle is the common interface; the implementation is artifact-specific.
 
@@ -101,6 +101,7 @@ Keep workflow permissions least-privilege. Prefer `contents: read`; request addi
 
 - The artifact graph is `sources → binaries → distros`.
 - Every artifact delivery is described through `prepare → check1 → install → check2 → publish`.
+- `check1` is lightweight and isolated; `check2` is E2E against the installed artifact.
 - Each artifact maps the common lifecycle to concrete commands and storage operations.
 - Source delivery remains a Git workflow rather than a reusable source workflow.
 - Required checks keep stable caller-level names while their implementation moves.
