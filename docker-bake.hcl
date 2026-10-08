@@ -14,7 +14,7 @@ target "engine" {
 target "postgres" {
   cache-from = ["type=gha,scope=postgres"]
   cache-to = ["type=gha,scope=postgres,mode=max"]
-  dockerfile = "liquibase.Dockerfile"
+  dockerfile = "migrations.Dockerfile"
   tags = ["orglang/pg-operator:latest"]
   context = "engine/db/postgres"
   output = ["type=docker"]
