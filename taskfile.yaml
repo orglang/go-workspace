@@ -58,3 +58,13 @@ tasks:
           --pull missing
           --quiet-pull
           --detach
+      - cmd: >-
+          docker compose
+          --file ops/{{index .DB .OPS}}.compose.yaml
+          --file ops/engine.compose.yaml
+          --env-file ops/{{.OPS}}/.env
+          logs
+          --no-color
+          database
+          schema
+        ignore_error: true
