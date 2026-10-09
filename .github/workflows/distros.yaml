@@ -75,9 +75,4 @@ jobs:
             --file ops/postgres.compose.yaml \
             --file ops/engine.compose.yaml \
             --env-file ops/commons/.env \
-            ps -a || true
-          docker compose \
-            --file ops/postgres.compose.yaml \
-            --file ops/engine.compose.yaml \
-            --env-file ops/commons/.env \
-            logs --no-color storage database schema || true
+            logs --no-color || true
