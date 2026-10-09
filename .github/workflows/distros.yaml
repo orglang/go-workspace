@@ -66,3 +66,13 @@ jobs:
 
       - name: check2
         run: task stack:commons
+
+      - name: PostgreSQL compose diagnostics
+        if: ${{ failure() }}
+        working-directory: stack
+        run: >-
+          docker compose
+          -f ops/postgres.compose.yaml
+          -f ops/engine.compose.yaml
+          --env-file ops/commons/.env
+          logs --no-color || true
