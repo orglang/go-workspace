@@ -69,16 +69,15 @@ jobs:
 
       - name: PostgreSQL compose diagnostics
         if: ${{ failure() }}
+        working-directory: stack
         run: |
           docker compose \
-            --file stack/ops/postgres.compose.yaml \
-            --env-file stack/ops/commons/.env \
+            --file ops/postgres.compose.yaml \
+            --file ops/engine.compose.yaml \
+            --env-file ops/commons/.env \
             ps -a || true
           docker compose \
-            --file stack/ops/postgres.compose.yaml \
-            --env-file stack/ops/commons/.env \
+            --file ops/postgres.compose.yaml \
+            --file ops/engine.compose.yaml \
+            --env-file ops/commons/.env \
             logs --no-color storage database schema || true
-          docker compose \
-            --file stack/ops/postgres.compose.yaml \
-            --env-file stack/ops/commons/.env \
-            up schema || true
