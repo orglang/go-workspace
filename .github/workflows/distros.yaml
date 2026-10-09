@@ -70,9 +70,9 @@ jobs:
       - name: PostgreSQL compose diagnostics
         if: ${{ failure() }}
         working-directory: stack
-        run: |
-          docker compose \
-            --file ops/postgres.compose.yaml \
-            --file ops/engine.compose.yaml \
-            --env-file ops/commons/.env \
-            logs --no-color || true
+        run: >-
+          docker compose
+          -f ops/postgres.compose.yaml
+          -f ops/engine.compose.yaml
+          --env-file ops/commons/.env
+          logs --no-color || true
