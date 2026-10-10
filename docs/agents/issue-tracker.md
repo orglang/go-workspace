@@ -2,6 +2,8 @@
 
 GitHub issues are the repository's tracker for work items and specifications. Use the repository's normal GitHub tooling for issue operations.
 
+Feature, wayfinder, and triage work items live in the `orglang/go-workspace` issue tracker. Other repositories (e.g. `orglang/go-engine`) only use issues for their own PRs and dependency bumps; verify the repository before acting on a bare `#N`.
+
 ## Issue lifecycle
 
 Keep issue operations explicit and reproducible:
