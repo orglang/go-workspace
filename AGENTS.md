@@ -76,6 +76,8 @@ Prefer repository Taskfiles and stage-appropriate entrypoints:
 
 If no suitable canonical task exists, use a direct command only when safe and explain the substitution.
 
+Run commands in another directory via the shell tool's `workdir` parameter, never by prefixing `cd <dir> &&`. Command allow-lists match from the start of the command line, so a `cd` prefix defeats every entry and forces an approval prompt.
+
 ## Done means
 
 A change is complete when the requested behavior is implemented, relevant checks are green or explicitly reported, generation/formatting requirements are satisfied, and the final diff contains only intended changes.
