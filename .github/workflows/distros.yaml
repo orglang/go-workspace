@@ -58,6 +58,10 @@ jobs:
       - name: prepare
         run: task engine:sources:generate
 
+      # Expose the Actions cache runtime variables to the inline Buildx CLI.
+      - name: Expose GitHub Actions runtime
+        uses: crazy-max/ghaction-github-runtime@v3
+
       - name: Build images
         run: docker buildx bake --load
 
