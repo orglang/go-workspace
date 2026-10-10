@@ -8,7 +8,7 @@ on:
         required: true
         type: string
       sdk_ref:
-        description: Exact go-sdk revision to test
+        description: Exact SDK revision to test
         required: true
         type: string
       workspace_ref:
@@ -58,10 +58,7 @@ jobs:
       - name: prepare
         run: task engine:sources:generate
 
-      - name: check1
-        run: docker buildx bake --set '*.output=type=cacheonly'
-
-      - name: install
+      - name: Build images
         run: docker buildx bake --load
 
       - name: check2
