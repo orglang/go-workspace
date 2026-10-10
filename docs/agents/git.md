@@ -2,6 +2,7 @@
 
 - Never commit directly to `main` or `trunk`.
 - Use a feature/task branch and integrate through a PR.
+- Branch from a freshly fetched remote base: `git fetch origin` first, then branch off `origin/<base>` (e.g. `origin/main`), never off a possibly-stale local ref. Confirm with `git rev-parse origin/main; git rev-parse main` — a stale local `main` splits the branch from the wrong tree.
 - Do not create commits unless the user explicitly requests a commit.
 - Never amend, rebase, squash, reset, or force-push existing history unless explicitly requested.
 - Preserve unrelated worktree changes; never discard user work.
