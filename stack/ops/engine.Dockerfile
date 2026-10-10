@@ -9,13 +9,13 @@ COPY go.work go.work.sum ./
 COPY engine/go.mod engine/go.sum ./engine/
 COPY sdk/go.mod sdk/go.sum ./sdk/
 
-RUN --mount=type=cache,target=/go/pkg/mod \
-    go mod download
+# Keep downloaded modules in the layer cache: BuildKit's GHA cache exporter does
+# not persist cache-mount contents across ephemeral CI builders.
+RUN go mod download
 
 COPY . .
 
-RUN --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=cache,target=/root/.cache/go-build \
+RUN --mount=type=cache,target=/root/.cache/go-build \
     go build -o go-engine engine/app/main.go
 
 FROM alpine:3.22
