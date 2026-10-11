@@ -11,7 +11,6 @@
     "paths": [".opencode/skills"]
   },
   "permission": {
-    "lsp": "allow",
     "edit": {
       "**/AGENTS.md": "ask",
       "**/taskfile*": "ask"
