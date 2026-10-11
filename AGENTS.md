@@ -78,7 +78,7 @@ If no suitable canonical task exists, use a direct command only when safe and ex
 
 Run commands in another directory via the shell tool's `workdir` parameter, so the line starts with the verb the allow-list matches — not `cd <dir> &&`, `git -C <dir> <sub>`, or `git --no-pager <sub>`. Command allow-lists match from the start of the command line, so any flag before the subcommand defeats every entry and forces an approval prompt.
 
-Inspect with `Read`/`Grep`/`Glob` and edit with `Edit`/`Write`; do not shell out to `cat`, `head`, `tail`, `find`, `sed -i`, or `perl -i`, and skip `echo` section headers. Those utilities sit off the bash allow-list, so each use forces an approval prompt.
+Inspect with `Read`/`Grep`/`Glob` and edit with `Edit`/`Write`; do not shell out to `cat`, `head`, `tail`, `find`, `sed`, or `perl`. Those utilities sit off the bash allow-list, so each use forces an approval prompt.
 
 ## Done means
 
