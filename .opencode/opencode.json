@@ -30,12 +30,9 @@
       "task sources*": "allow",
       "task binaries*": "allow",
       "task engine:sources": "allow",
-      "task engine:src": "allow",
       "task engine:binaries": "allow",
       "task engine:tests:unit": "allow",
       "task engine:tests:it": "allow",
-      "task engine:linter:*": "allow",
-      "task engine:generator:*": "allow",
 
       "psql*": "ask",
       "docker buildx bake*": "ask",
@@ -44,7 +41,7 @@
       "task stand:*": "ask",
       "task engine:tests:e2e": "ask",
 
-      "docker compose down*": "ask"
+      "docker compose*": "ask"
     }
   }
 }
