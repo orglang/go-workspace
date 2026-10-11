@@ -13,38 +13,20 @@
   },
   "permission": {
     "bash": {
-      "gofmt -l*": "allow",
-      "gofmt -s -l*": "allow",
-      "gofmt -s -w*": "allow",
-      "gofmt -w*": "allow",
       "go build*": "allow",
       "go test*": "allow",
       "go generate*": "allow",
       "go run*": "allow",
-      "pwd*": "allow",
 
       "git add*": "allow",
-      "git branch --show-current": "allow",
       "git commit*": "allow",
-      "git fetch*": "allow",
-      "git merge-base*": "allow",
       "git mv*": "allow",
       "git switch*": "allow",
       "git restore*": "allow",
 
-      "gh issue view*": "allow",
-      "gh issue list*": "allow",
-      "gh pr view*": "allow",
-      "gh pr list*": "allow",
-      "gh pr checks*": "allow",
-      "gh pr diff*": "allow",
-
-      "mkdir*": "allow",
       "mv*": "allow",
       "sed*": "allow",
 
-      "task --list*": "allow",
-      "task -l*": "allow",
       "task sources*": "allow",
       "task binaries*": "allow",
       "task engine:sources": "allow",
