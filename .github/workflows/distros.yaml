@@ -12,8 +12,9 @@ on:
         required: true
         type: string
       workspace_ref:
-        description: go-workspace revision providing this workflow and Taskfiles
-        required: true
+        description: Optional go-workspace revision; defaults to the PR branch when it exists, otherwise main
+        required: false
+        default: ''
         type: string
       run:
         description: Whether to run the distros checks
@@ -30,10 +31,44 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
+      - name: Resolve workspace ref
+        id: workspace-ref
+        shell: bash
+        env:
+          WORKSPACE_REF: ${{ inputs.workspace_ref }}
+          PR_BRANCH: ${{ github.head_ref }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+
+          if [[ -n "$WORKSPACE_REF" ]]; then
+            ref="$WORKSPACE_REF"
+            reason="explicit input"
+          elif [[ "$EVENT_NAME" == "pull_request" && -n "$PR_BRANCH" ]]; then
+            if remote_ref="$(git ls-remote --heads https://github.com/orglang/go-workspace.git "refs/heads/$PR_BRANCH")"; then
+              if [[ -n "$remote_ref" ]]; then
+                ref="$PR_BRANCH"
+                reason="matching PR branch"
+              else
+                ref="main"
+                reason="no matching branch"
+              fi
+            else
+              echo "::error::Unable to check whether go-workspace branch '$PR_BRANCH' exists."
+              exit 1
+            fi
+          else
+            ref="main"
+            reason="default"
+          fi
+
+          echo "Using orglang/go-workspace ref '$ref' ($reason)."
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+
       - name: Checkout workspace
         uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.workspace_ref }}
+          ref: ${{ steps.workspace-ref.outputs.ref }}
           repository: orglang/go-workspace
 
       - name: Checkout engine
