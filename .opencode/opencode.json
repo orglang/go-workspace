@@ -3,32 +3,32 @@
   "instructions": ["AGENTS.md"],
   "lsp": {
     "go": {
-    "command": ["gopls"],
-    "extensions": [".go"],
-    "format": true
+      "command": ["gopls"],
+      "extensions": [".go"]
     }
   },
   "skills": {
     "paths": [".opencode/skills"]
   },
   "permission": {
+    "lsp": "allow",
+    "edit": {
+      "**/AGENTS.md": "ask",
+      "**/taskfile*": "ask"
+    },
     "bash": {
-      "go build*": "allow",
-      "go test*": "allow",
-      "go generate*": "allow",
-      "go run*": "allow",
+      "go generate*": "ask",
+      "go run*": "ask",
 
-      "git add*": "allow",
-      "git commit*": "allow",
       "git mv*": "allow",
-      "git switch*": "allow",
-      "git restore*": "allow",
+      "git restore*": "ask",
 
-      "mv*": "allow",
-      "sed*": "allow",
+      "mv*": "ask",
 
-      "task sources*": "allow",
-      "task binaries*": "allow",
+      "task sources": "allow",
+      "task sources *": "allow",
+      "task binaries": "allow",
+      "task binaries *": "allow",
       "task engine:sources": "allow",
       "task engine:binaries": "allow",
       "task engine:tests:unit": "allow",
