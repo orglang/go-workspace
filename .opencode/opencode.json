@@ -28,6 +28,8 @@
       "task sources *": "allow",
       "task binaries": "allow",
       "task binaries *": "allow",
+      "task tests:*": "allow",
+      "task linter:*": "allow",
       "task engine:sources": "allow",
       "task engine:binaries": "allow",
       "task engine:tests:unit": "allow",
