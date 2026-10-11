@@ -8,5 +8,6 @@
 - Do not replace meaningful integration/e2e coverage with mocks merely for convenience.
 - Do not delete, weaken, skip, or rewrite tests solely to make CI pass.
 - Keep tests deterministic and avoid introducing unnecessary external dependencies.
+- Prefer the canonical `task engine:tests:unit` (which passes `-tags=unit`) over a bare `go test ./...`, which omits the tag. After meaningful edits, re-run with `-count=1`: the Go build cache can return stale `(cached)` results.
 
 Choose checks according to the development stage; see `ci.md`.
