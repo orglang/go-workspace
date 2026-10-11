@@ -34,25 +34,17 @@ jobs:
         run: |
           set -euo pipefail
 
+          ref="main"
           if [[ "$EVENT_NAME" == "pull_request" && -n "$PR_BRANCH" ]]; then
-            if remote_ref="$(git ls-remote --heads https://github.com/orglang/go-workspace.git "refs/heads/$PR_BRANCH")"; then
-              if [[ -n "$remote_ref" ]]; then
-                ref="$PR_BRANCH"
-                reason="matching PR branch"
-              else
-                ref="main"
-                reason="no matching branch"
-              fi
-            else
+            remote_ref="$(git ls-remote --heads https://github.com/orglang/go-workspace.git "refs/heads/$PR_BRANCH")" || {
               echo "::error::Unable to check whether go-workspace branch '$PR_BRANCH' exists."
               exit 1
-            fi
-          else
-            ref="main"
-            reason="not a pull request"
+            }
+            ref="${remote_ref:+$PR_BRANCH}"
+            ref="${ref:-main}"
           fi
 
-          echo "Using orglang/go-workspace ref '$ref' ($reason)."
+          echo "Using orglang/go-workspace ref '$ref'."
           echo "ref=$ref" >> "$GITHUB_OUTPUT"
 
       - name: Checkout workspace
