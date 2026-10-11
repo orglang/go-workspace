@@ -28,7 +28,7 @@ Related repositories: `github.com/orglang/rationale`, `github.com/orglang/go-sdk
 ## Non-negotiable architecture rules
 
 - Preserve the core/adapter boundary and dependency direction.
-- Toolkit-agnostic code must not import the SDK or a concrete toolkit.
+- Toolkit-agnostic code depends only on the standard library and other toolkit-agnostic code (no SDK, no concrete toolkit).
 - Keep DTOs and wire-format concerns on adapter/toolkit-specific sides.
 - Export types that cross the `core/adapter` boundary as required by ADR 0005.
 - Use established glossary terminology and model suffixes (`Ref`, `Spec`, `Rec`, `Mod`, `Snap`).
@@ -37,7 +37,7 @@ See `docs/agents/architecture.md`.
 
 ## Scope and compatibility
 
-- Prefer the smallest coherent change; avoid unrelated cleanup.
+- Make the smallest coherent change; keep unrelated cleanup in its own change.
 - Preserve existing behavior unless the task explicitly changes it.
 - Treat exported APIs, SDK DTOs, serialized formats, protocols, database/persisted data, CLI/config interfaces, and cross-component contracts as compatibility-sensitive.
 - Breaking changes need explicit justification and, when architectural, an ADR or migration plan.
@@ -49,19 +49,19 @@ See `docs/agents/compatibility.md` and `docs/agents/dependencies.md`.
 - Test observable behavior and contracts.
 - Add regression coverage for reproducible bugs.
 - Use integration/e2e tests when the real boundary is what matters.
-- Do not weaken meaningful tests merely to make CI pass.
-- Never hand-edit generated output; update its source and regenerate reproducibly.
+- When CI fails, fix the behavior the test asserts; keep meaningful tests intact.
+- Change generated output by editing its source and regenerating reproducibly.
 
 See `docs/agents/testing.md` and `docs/agents/generated-code.md`.
 
 ## Security and Git safety
 
-- Never expose, copy, commit, or log secrets or sensitive environment data.
-- Do not use production credentials for local development.
-- Do not disable security controls merely to make a check pass.
+- Load secrets and sensitive environment data at runtime from a secret store or environment; code, commits, and logs reference them by name only.
+- Use development credentials for local work; reserve production credentials for production.
+- Resolve the issue a security check reports, leaving the control in force.
 - Destructive operations require explicit authorization.
-- Work through a branch and PR; do not write directly to `main`/trunk.
-- Do not rewrite existing history or discard existing work unless explicitly requested.
+- Work through a branch and PR; land changes on `main`/trunk via PR.
+- Treat existing history and work as append-only; rewrite history or discard work only when explicitly requested.
 
 See `docs/agents/security.md` and `docs/agents/git.md`.
 
@@ -76,9 +76,9 @@ Prefer repository Taskfiles and stage-appropriate entrypoints:
 
 If no suitable canonical task exists, use a direct command only when safe and explain the substitution.
 
-Run commands in another directory via the shell tool's `workdir` parameter, so the line starts with the verb the allow-list matches — not `cd <dir> &&`, `git -C <dir> <sub>`, or `git --no-pager <sub>`. Command allow-lists match from the start of the command line, so any flag before the subcommand defeats every entry and forces an approval prompt.
+Run commands in another directory via the shell tool's `workdir` parameter, so the line starts with the verb the allow-list matches. Start with the verb and its subcommand: a leading `cd <dir> &&`, `git -C <dir> <sub>`, or `git --no-pager <sub>` puts a flag ahead of the subcommand, which defeats every allow-list entry and forces an approval prompt.
 
-Inspect with `Read`/`Grep`/`Glob` and edit with `Edit`/`Write`; do not shell out to `cat`, `head`, `tail`, `find`, `sed`, or `perl`. Those utilities sit off the bash allow-list, so each use forces an approval prompt.
+Inspect with `Read`/`Grep`/`Glob` and edit with `Edit`/`Write`; these match the bash allow-list. Shelling out to `cat`, `head`, `tail`, `find`, `sed`, or `perl` sits off the allow-list and forces an approval prompt.
 
 ## Done means
 
