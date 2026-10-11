@@ -11,10 +11,6 @@ on:
         description: Exact go-sdk revision to test
         required: true
         type: string
-      workspace_ref:
-        description: go-workspace revision providing this workflow and Taskfiles
-        required: true
-        type: string
       run:
         description: Whether to run the binaries checks
         required: false
@@ -29,10 +25,32 @@ jobs:
     if: ${{ inputs.run }}
     runs-on: ubuntu-latest
     steps:
+      - name: Resolve workspace ref
+        id: workspace-ref
+        shell: bash
+        env:
+          BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          ref="main"
+          if [[ -n "$BRANCH_NAME" ]]; then
+            remote_ref="$(git ls-remote --heads https://github.com/orglang/go-workspace.git "refs/heads/$BRANCH_NAME")" || {
+              echo "::error::Unable to check whether go-workspace branch '$BRANCH_NAME' exists."
+              exit 1
+            }
+            if [[ -n "$remote_ref" ]]; then
+              ref="$BRANCH_NAME"
+            fi
+          fi
+
+          echo "Using orglang/go-workspace ref '$ref'."
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+
       - name: Checkout workspace
         uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.workspace_ref }}
+          ref: ${{ steps.workspace-ref.outputs.ref }}
           repository: orglang/go-workspace
 
       - name: Checkout engine
