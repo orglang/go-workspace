@@ -71,17 +71,24 @@ redundant but are left in place — the wiring is preserved verbatim, per ADR 00
 
 ## Imports
 
-Inside the aggregate, the alias is the aggregate name, not the layer:
+The alias is the aggregate's bare name — never the layer — for both halves,
+inside the aggregate and out:
 
 ```go
-import pooltypedef "orglang/go-engine/pool/typedef/core"
+import typedef "orglang/go-engine/pool/typedef/core"
 ```
 
-Outside it, consumers alias the half they actually use. `app/main.go` and
-`prog/tc.go` need the adapter (the fx module, the message conversions);
-`prog/core.go` and `pool/termdef/core.go` need the core (the models, the driven
-port). Where both appear, the SDK import gets an explicit `sdk` prefix so
-`sdktypedef.DefSpec` and `pooltypedef.DefSpec` cannot be confused.
+A prefix appears only to break a collision between two same-named imports:
+
+1. **A same-named SDK package in the same file** takes the `sdk` prefix
+   (`sdktypedef`), leaving our half bare (`typedef`).
+2. **The same aggregate from both `pool` and `proc` in one file** is prefixed
+   on both sides: `pooltypedef`, `proctypedef`. Examples: `app/main.go`,
+   `prog/core.go`, `prog/tc.go`, `pool/compexec/core.go`.
+3. **A shared-kernel namesake (`adt/<aggregate>`) in the same file** takes the
+   `adt` prefix (`adtcompvar`), while the sibling `pool/compvar/core` import
+   stays bare `compvar`. Example:
+   `pool/compvar/adapter/{ds_pgx,qb_sqlbuilder}.go`.
 
 ## goverter
 

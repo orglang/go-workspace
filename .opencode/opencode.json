@@ -3,51 +3,35 @@
   "instructions": ["AGENTS.md"],
   "lsp": {
     "go": {
-    "command": ["gopls"],
-    "extensions": [".go"],
-    "format": true
+      "command": ["gopls"],
+      "extensions": [".go"]
     }
   },
   "skills": {
     "paths": [".opencode/skills"]
   },
   "permission": {
+    "edit": {
+      "**/AGENTS.md": "ask",
+      "**/taskfile*": "ask"
+    },
     "bash": {
-      "gofmt -l*": "allow",
-      "gofmt -s -l*": "allow",
-      "gofmt -w*": "allow",
-      "go build*": "allow",
-      "go test*": "allow",
-      "go generate*": "allow",
-      "go run*": "allow",
+      "go generate*": "ask",
+      "go run*": "ask",
 
-      "git add*": "allow",
-      "git commit*": "allow",
-      "git switch*": "allow",
-      "git restore*": "allow",
+      "git mv*": "allow",
+      "git restore*": "ask",
 
-      "gh issue view*": "allow",
-      "gh issue list*": "allow",
-      "gh pr view*": "allow",
-      "gh pr list*": "allow",
-      "gh pr checks*": "allow",
-      "gh pr diff*": "allow",
+      "mv*": "ask",
 
-      "mkdir*": "allow",
-      "mv*": "allow",
-      "sed*": "allow",
-
-      "task --list*": "allow",
-      "task -l*": "allow",
-      "task sources*": "allow",
-      "task binaries*": "allow",
+      "task sources": "allow",
+      "task sources *": "allow",
+      "task binaries": "allow",
+      "task binaries *": "allow",
       "task engine:sources": "allow",
-      "task engine:src": "allow",
       "task engine:binaries": "allow",
       "task engine:tests:unit": "allow",
       "task engine:tests:it": "allow",
-      "task engine:linter:*": "allow",
-      "task engine:generator:*": "allow",
 
       "psql*": "ask",
       "docker buildx bake*": "ask",
@@ -56,7 +40,7 @@
       "task stand:*": "ask",
       "task engine:tests:e2e": "ask",
 
-      "docker compose down*": "ask"
+      "docker compose*": "ask"
     }
   }
 }
