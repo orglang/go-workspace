@@ -31,3 +31,17 @@ Root: meta repo with `go.work`. Nested repos are the subdirectories containing `
 
 ## Report
 Per changed repo: summary, commit hashes, confirmation that `git status` is clean. Plus checks run (including failures and skips) and unresolved issues.
+
+## Agent skills
+
+### Issue tracker
+
+Issues and specs live as GitHub issues in `orglang/go-workspace`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Five canonical triage roles, label strings equal to their names. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `GLOSSARY.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.

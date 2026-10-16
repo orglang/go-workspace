@@ -25,17 +25,7 @@ If that policy changes, apply the same issue states and triage labels to externa
 
 ## Triage labels
 
-Use the repository's actual label names:
-
-| Role | Label | Meaning |
-| --- | --- | --- |
-| Needs evaluation | `needs-triage` | Maintainer should evaluate the issue |
-| Needs information | `needs-info` | Waiting for reporter information |
-| Agent-ready | `ready-for-agent` | Fully specified for agent work |
-| Human-ready | `ready-for-human` | Requires human implementation |
-| Won't fix | `wontfix` | Will not be actioned |
-
-The label names above are the repository vocabulary; do not introduce a second alias layer in other guidance.
+The canonical triage label vocabulary is defined in `docs/agents/triage-labels.md`.
 
 ## Wayfinding
 
