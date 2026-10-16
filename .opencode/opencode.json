@@ -24,9 +24,9 @@
 
       "mv*": "ask",
 
-      "task sources": "allow",
+      "task sources*": "allow",
       "task sources *": "allow",
-      "task binaries": "allow",
+      "task binaries*": "allow",
       "task binaries *": "allow",
       "task tests:*": "allow",
       "task linter:*": "allow",
