@@ -18,6 +18,13 @@ Root: meta repo with `go.work`. Nested repos are the subdirectories containing `
 - Never bypass hooks (`--no-verify`, editing hook config); on failure, fix the cause and retry.
 - Never push, and never rewrite published commits (amend, rebase), unless explicitly asked.
 
+### GitHub API-only workflow
+- A local checkout is preferred, but its absence is not by itself a blocker. When no local workspace is available, repository inspection and changes may be performed through the GitHub API.
+- In API-only work, read the applicable `AGENTS.md` files first; identify the owning repository and its default branch; verify that the task branch does not already exist; and create the task branch from the default branch before editing.
+- The local `git status --porcelain` check cannot be performed without a local checkout. Do not claim that a local working tree is clean; instead, inspect the remote base and task-branch state and report that the local status check was unavailable.
+- GitHub API commits do not run local Git hooks. Do not represent them as having run or as having been bypassed; report the limitation explicitly and rely on repository CI/required checks where available. Never claim checks passed unless their results were observed.
+- Keep API-only changes limited to the requested files. Review the resulting commit/diff before proceeding, and report any checks that could not be run.
+
 ## Checks
 - Review the diff before committing; include only intended changes. If unintended changes appear (e.g. from generation), stop and report; do not revert or discard them.
 - Hooks enforce linters and tests. Run targeted checks directly (`go test ./pkg/foo -run TestBar`), and any check the hooks do not cover or fail to run.
