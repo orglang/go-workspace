@@ -3,7 +3,7 @@
 ## Change discipline
 
 - Start from the requested behavior and identify the smallest coherent change.
-- Preserve existing APIs and behavior unless the task explicitly requires otherwise.
+- Preserve existing behavior unless the task requires a change. For workspace API changes, update affected consumers rather than retaining obsolete compatibility paths.
 - Prefer existing patterns and utilities over introducing new abstractions.
 - Avoid drive-by cleanup, unrelated renames, and broad refactors.
 
