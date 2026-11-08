@@ -74,7 +74,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Generate engine sources
-        run: task engine:sources:generate
+        run: cd engine && GOWORK=off go tool -modfile=gear.mod task --dir .. engine:sources:generate
 
       # Expose the Actions cache runtime variables to the inline Buildx CLI.
       - name: Expose GitHub Actions runtime
@@ -84,7 +84,7 @@ jobs:
         run: docker buildx bake --load
 
       - name: Check common stack services
-        run: task stack:commons
+        run: cd engine && GOWORK=off go tool -modfile=gear.mod task --dir .. stack:commons
 
       - name: PostgreSQL compose diagnostics
         if: ${{ failure() }}
