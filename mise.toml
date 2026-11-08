@@ -1,0 +1,23 @@
+# mise is introduced alongside Task for evaluation only.
+# Keep taskfile.yaml as the source of truth until issue #97 is resolved.
+
+[tools]
+go = "1.27.0"
+
+[tasks."workspace:info"]
+description = "Show the active Go workspace and Go version"
+run = ["go version", "go env GOWORK"]
+
+[tasks."engine:unit"]
+description = "Run the existing go-engine unit-test package set"
+dir = "engine"
+run = "go test -tags=unit ./internal/lib/... ./internal/adt/... ./internal/app/... ./cmd/... ./internal/pool/... ./internal/proc/... ./internal/prog/... ./internal/proto/..."
+
+[tasks."sdk:test"]
+description = "Run the Go SDK test suite"
+dir = "sdk"
+run = "go test ./..."
+
+[tasks.test]
+description = "Run engine unit tests and SDK tests in parallel"
+depends = ["engine:unit", "sdk:test"]
