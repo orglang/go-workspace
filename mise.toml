@@ -8,10 +8,34 @@ go = "1.27.0"
 description = "Show the active Go workspace and Go version"
 run = ["go version", "go env GOWORK"]
 
-[tasks."engine:unit"]
-description = "Run the existing go-engine unit-test package set"
+# Parameterized equivalent of go-engine's existing tests:* Task.
+# mise exposes parsed arguments as usage_* environment variables.
+[tasks."engine:tests"]
+description = "Run go-engine tests at the selected level"
 dir = "engine"
-run = "go test -tags=unit ./internal/lib/... ./internal/adt/... ./internal/app/... ./cmd/... ./internal/pool/... ./internal/proc/... ./internal/prog/... ./internal/proto/..."
+usage = '''
+arg "<level>" help="Test level" {
+  choices "unit" "it" "e2e"
+}
+'''
+run = '''
+case "$usage_level" in
+  unit)
+    go test -tags=unit ./internal/lib/... ./internal/adt/... ./internal/app/... ./cmd/... ./internal/pool/... ./internal/proc/... ./internal/prog/... ./internal/proto/...
+    ;;
+  it)
+    go test -run=TestIntegration ./internal/lib/... ./internal/adt/... ./internal/app/... ./cmd/...
+    ;;
+  e2e)
+    go test -failfast ./test/...
+    ;;
+esac
+'''
+
+# Reusable wrapper demonstrates calling a parameterized subtask with args.
+[tasks."engine:unit"]
+description = "Run go-engine unit tests"
+run = [{ task = "engine:tests", args = ["unit"] }]
 
 [tasks."sdk:test"]
 description = "Run the Go SDK test suite"
@@ -21,3 +45,30 @@ run = "go test ./..."
 [tasks.test]
 description = "Run engine unit tests and SDK tests in parallel"
 depends = ["engine:unit", "sdk:test"]
+
+# Task's CID vars use sh: at variable-evaluation time. In mise, keep this
+# calculation in the task's shell and print the resulting fingerprint.
+[tasks."engine:source-fingerprint"]
+description = "Calculate the source fingerprint used by the engine taskfile"
+dir = "engine"
+run = '''
+find internal/lib internal/adt internal/app internal/pool internal/proc internal/prog internal/proto cmd/engine \
+  -name "*.go" -exec md5sum {} + -o \
+  -name "Dockerfile" -exec md5sum {} + |
+  LC_ALL=C sort -k 2 |
+  md5sum |
+  cut -c1-7
+'''
+
+# The db Taskfile's computed CID, expressed as a shell calculation rather
+# than a mise [vars] value.
+[tasks."engine:db-fingerprint"]
+description = "Calculate the database configuration fingerprint"
+dir = "engine/db"
+env = { VENDOR = "postgres" }
+run = '''
+find "$VENDOR" -type f -exec md5sum {} + |
+  LC_ALL=C sort -k 2 |
+  md5sum |
+  cut -c1-7
+'''
