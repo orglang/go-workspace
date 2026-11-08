@@ -16,13 +16,13 @@ RUN go mod download
 COPY . .
 
 RUN --mount=type=cache,target=/root/.cache/go-build \
-    go build -o go-engine engine/app/main.go
+    go build -o go-engine engine/cmd/engine/main.go
 
 FROM alpine:3.22
 
 WORKDIR /orglang
 
-COPY engine/app/reference.yaml .
+COPY engine/internal/app/reference.yaml .
 
 COPY --from=builder /orglang/go-engine .
 
