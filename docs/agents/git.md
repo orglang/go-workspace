@@ -1,6 +1,6 @@
 # Git and PR Safety
 
-- Before the first edit in a repo, `git status --porcelain` must be empty. Otherwise stop and report; never stash, reset, clean, or overwrite existing work.
+- For a local agent working in a local checkout, before the first edit in a repo, `git status --porcelain` must be empty. Otherwise stop and report; never stash, reset, clean, or overwrite existing work. This local-worktree check does not apply to remote agents making changes through GitHub APIs.
 - Every task must have a ticket ID. If the user has not supplied one, ask; never invent one.
 - Create `<type>/<TICKET-123>-<short-name>` from the default branch (`<type>` as in Conventional Commits). Use the same branch name across related repos. If the branch already exists or the default branch is unclear, stop and ask.
 - Commits are allowed by default when they are part of completing the task; ask only when the user has restricted commits or the task context is unclear.
