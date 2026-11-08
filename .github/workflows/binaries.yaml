@@ -70,4 +70,4 @@ jobs:
       - uses: ./.github/actions/setup-tools
 
       - name: Run binaries checks
-        run: task binaries
+        run: cd engine && GOWORK=off go tool -modfile=gear.mod task --dir .. binaries
