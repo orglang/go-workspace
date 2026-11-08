@@ -1,19 +1,19 @@
-# Архитектура workspace
+# Workspace Architecture
 
-## Назначение репозитория
+## Repository Purpose
 
-`go-workspace` — meta-repository для совместной разработки модулей Orglang, а не единый Go-модуль и не место для исходников движка.
+`go-workspace` is a meta-repository for developing Orglang modules together. It is not a single Go module and does not own the engine source code.
 
 ```text
 go-workspace/
 ├── AGENTS.md
 ├── README.md
 ├── go.work
-├── engine/   # отдельный Git-репозиторий orglang/go-engine
-└── sdk/      # отдельный Git-репозиторий orglang/go-sdk
+├── engine/   # separate Git repository: orglang/go-engine
+└── sdk/      # separate Git repository: orglang/go-sdk
 ```
 
-Корневой `go.work` объединяет локальные модули:
+The root `go.work` brings the local modules together:
 
 ```go
 go 1.27.0
@@ -24,101 +24,103 @@ use (
 )
 ```
 
-Каждый вложенный репозиторий сохраняет собственные `.git`, `go.mod`, историю, CI и релизный цикл. Workspace задаёт контекст совместной разработки, но не поглощает эти границы.
+Each nested repository keeps its own `.git` directory, `go.mod`, history, CI configuration, and release lifecycle. The workspace provides a shared local development context without erasing those repository boundaries.
 
-## Карта модулей
+## Module Responsibilities
 
-- **engine** — runtime, доменная модель и исполнение процессов.
-- **sdk** — публичные типы и API, предназначенные для потребителей движка.
-- **go-workspace** — только координация локальной разработки модулей, workspace-настройки и документация их совместной работы.
+- **engine** — runtime, domain model, and process execution.
+- **sdk** — public types and APIs intended for engine consumers.
+- **go-workspace** — coordination of local module development, workspace configuration, and documentation for working across modules.
 
-Изменения исходного кода движка должны коммититься в `orglang/go-engine`, SDK — в `orglang/go-sdk`. В корневом репозитории остаются только изменения, относящиеся к workspace как целому.
+Changes to engine source code belong in `orglang/go-engine`; SDK source changes belong in `orglang/go-sdk`. The root repository should contain only changes that concern the workspace as a whole.
 
-## Архитектура engine
+## Engine Architecture
 
-Текущая структура `engine` уже группирует код по возможностям и отделяет ядро от адаптеров. Сохраняем эту организацию, не вводя искусственные универсальные слои `domain/`, `application/` и `infrastructure/` поверх существующих пакетов.
+The current `engine` layout is organized around business capabilities and keeps core logic separate from adapters. Preserve this structure rather than adding generic `domain/`, `application/`, and `infrastructure/` layers on top of the existing packages.
 
 ```text
 engine/
 ├── adt/
-│   └── <concept>/              # доменные типы, значения и семантические модели
+│   └── <concept>/              # domain types, values, and semantic models
+│       └── adapter/            # persistence and other concrete integrations
 │
 ├── proc/
 │   └── <capability>/
-│       ├── core/               # use cases, сервисы и необходимые им порты
-│       └── adapter/            # реализации портов, HTTP/controller/presenter
+│       ├── core/               # use cases, services, and required ports
+│       └── adapter/            # port implementations, HTTP/controller/presenter
 │
 ├── pool/
 │   └── <capability>/
-│       ├── core/               # сервисы и порты capability
-│       └── adapter/            # persistence и прочие интеграции
+│       ├── core/               # capability services and ports
+│       └── adapter/            # persistence and other integrations
 │
 ├── lib/
-│   ├── tx/                     # общий контракт транзакций/соединений
+│   ├── tx/                     # shared transaction/connection contract
 │   └── <technical-area>/
-│       └── adapter/            # конкретная техническая реализация
+│       └── adapter/            # concrete technical implementation
 │
 └── app/
     ├── main.go                 # composition root
-    └── web/                    # входящий HTTP-адаптер
+    └── web/                    # inbound HTTP adapter
 ```
 
-### Ответственность пакетов
+### Package Responsibilities
 
-| Область | Ответственность | Допустимые зависимости |
+| Area | Responsibility | Allowed dependencies |
 |---|---|---|
-| `adt/<concept>` | Доменные типы, инварианты, преобразования значений | Стандартная библиотека и другие доменные пакеты |
-| `proc/<capability>/core` | Прикладные сценарии и orchestration | `adt`, необходимые порты и общие контракты из `lib` |
-| `pool/<capability>/core` | Сервисы capability и их контракты | `adt`, другие core-пакеты через их порты |
-| `*/adapter` | PostgreSQL, HTTP, сериализация, внешние системы | Соответствующий core/domain и конкретные драйверы |
-| `lib/tx` | Минимальный технический контракт транзакций | Не зависит от конкретного драйвера |
-| `lib/*/adapter` | Реализации общих технических контрактов | Конкретные библиотеки и инфраструктура |
-| `app` | Создание приложения и связывание реализаций | Конкретные адаптеры и DI-контейнер |
+| `adt/<concept>` | Domain types, invariants, and value conversions | Standard library and other domain packages |
+| `proc/<capability>/core` | Application use cases and orchestration | `adt`, required ports, and shared contracts from `lib` |
+| `pool/<capability>/core` | Capability services and their contracts | `adt` and other core packages through their ports |
+| `*/adapter` | PostgreSQL, HTTP, serialization, and external systems | Corresponding core/domain packages and concrete drivers |
+| `lib/tx` | Minimal technical transaction contract | Must not depend on a concrete driver |
+| `lib/*/adapter` | Implementations of shared technical contracts | Concrete libraries and infrastructure |
+| `app` | Application construction and implementation wiring | Concrete adapters and the DI container |
 
-### Правила направления зависимостей
+### Dependency Direction Rules
 
-1. Доменная модель не импортирует transport, database drivers, DI frameworks или конкретные адаптеры.
-2. `core` объявляет интерфейсы, необходимые его use cases. Не следует выносить интерфейс в общий пакет только ради повторного использования.
-3. Адаптер реализует порт и зависит от пакета, в котором этот порт объявлен. Обратная зависимость запрещена.
-4. Транзакцией и временем жизни соединения управляет transactor. Репозитории получают `tx.Conn` из callback и не открывают соединения и транзакции самостоятельно.
-5. Только composition root знает конкретные реализации и связывает их с портами.
-6. Не создавать отдельный слой/пакет без реальной границы или причины для независимого изменения.
+1. Domain models must not import transport packages, database drivers, DI frameworks, or concrete adapters.
+2. Each `core` package declares the interfaces required by its use cases. Do not move an interface into a shared package solely for reuse.
+3. An adapter implements a port and depends on the package that declares that port. The reverse dependency is forbidden.
+4. The transactor owns transaction and connection lifetimes. Repositories receive `tx.Conn` from the callback and must not acquire connections or start transactions themselves.
+5. Only the composition root knows concrete implementations and wires them to ports.
+6. Do not introduce a separate layer or package without a real boundary or an independent reason to change.
+7. Enforce core and domain dependency boundaries with the `depguard` rules in `engine/.depguard.yml`, invoked by the `linter:arch` Taskfile task.
 
-## Текущее состояние и миграция
+## Current State and Migration
 
-В `engine` уже есть важные элементы целевой архитектуры:
+The `engine` module already has the main elements of the target architecture:
 
-- `proc/*/core` и `pool/*/core` содержат сервисы и интерфейсы репозиториев;
-- `proc/*/adapter` и `pool/*/adapter` содержат реализации на pgx и входящие адаптеры;
-- `lib/tx` задаёт транзакционный контракт, а `lib/db/adapter` реализует его через pgx;
-- `app/main.go` собирает приложение через Fx, `app/web` предоставляет HTTP-вход.
+- `proc/*/core` and `pool/*/core` contain services and repository interfaces;
+- `proc/*/adapter` and `pool/*/adapter` contain pgx-backed implementations and inbound adapters;
+- `lib/tx` defines the transaction contract, while `lib/db/adapter` implements it using pgx;
+- `app/main.go` assembles the application with Fx, and `app/web` provides the HTTP entry point.
 
-При этом есть конкретный архитектурный долг: реализации pgx находятся непосредственно в доменных пакетах `adt/compsem`, `adt/descsem`, `adt/implsem` и `adt/typesem` (файлы `ds_pgx.go`). Их следует перенести в соответствующие `adapter`-пакеты, оставив в доменном ядре типы, преобразования и нужные порты. При переносе нужно сохранить сигнатуры портов и поведение репозиториев; wiring обновить в composition root/модулях DI.
+The ADT PostgreSQL implementations for `compsem`, `descsem`, `implsem`, and `typesem` have been moved into their respective `adapter` subpackages. Domain types, DTOs, conversion functions, and repository ports remain in the domain packages. Fx wiring now references the adapter constructors.
 
-Миграция выполняется небольшими вертикальными шагами:
+The migration is intended to proceed in small vertical steps:
 
-1. Зафиксировать существующие контракты и поведение тестами.
-2. Для одной capability вынести конкретную реализацию драйвера из core/domain в `adapter`.
-3. Обновить только wiring, не меняя публичный контракт без необходимости.
-4. Проверить unit/integration tests и сборку.
-5. Повторить для следующей capability.
-6. Добавить архитектурные проверки, запрещающие импорт драйверов и адаптеров из core/domain.
-7. Обновить документацию capability после завершения переноса.
+1. Capture existing contracts and behavior with tests.
+2. Move one concrete driver implementation at a time from core/domain into its `adapter` package.
+3. Update only the wiring; avoid changing public contracts unless necessary.
+4. Run unit/integration tests and build checks.
+5. Repeat for the next capability.
+6. Enforce dependency boundaries with `depguard` so core/domain packages cannot import drivers, SDK packages, or concrete adapters.
+7. Update capability documentation after each migration is complete.
 
-## Работа с workspace
+## Working with the Workspace
 
-Из корня workspace:
+From the workspace root:
 
 ```bash
-# проверить выбранный workspace
+# Inspect the selected workspace
 go env GOWORK
 
-# синхронизировать зависимости модулей workspace
+# Synchronize dependencies across workspace modules
 go work sync
 
-# проверить модули независимо
+# Test each module independently
 (cd engine && go test ./...)
 (cd sdk && go test ./...)
 ```
 
-Проверка модулей по отдельности важна: наличие `go.work` не должно скрывать некорректные зависимости, которые не будут доступны потребителю опубликованного модуля.
+Testing modules independently is important: the presence of `go.work` must not hide invalid dependencies that would be unavailable to consumers of a published module.
