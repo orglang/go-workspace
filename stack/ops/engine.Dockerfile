@@ -22,7 +22,7 @@ FROM alpine:3.22
 
 WORKDIR /orglang
 
-COPY engine/internal/app/reference.yaml .
+COPY engine/cmd/engine/reference.yaml .
 
 COPY --from=builder /orglang/go-engine .
 

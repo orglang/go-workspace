@@ -1,10 +1,11 @@
 *
-!*/app
+!*/cmd
+!*/internal
 !*/adt
 !*/lib
 !*/pool
 !*/proc
-!*/proto
+!*/prog
 !*/go.mod
 !*/go.sum
 !go.work
