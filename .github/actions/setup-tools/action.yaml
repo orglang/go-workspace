@@ -14,5 +14,3 @@ runs:
           engine/gear.mod
           engine/gear.sum
           sdk/go.sum
-    - name: Setup task
-      uses: go-task/setup-task@v1
