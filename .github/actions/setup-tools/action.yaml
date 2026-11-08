@@ -11,6 +11,8 @@ runs:
         cache: true
         cache-dependency-path: |
           engine/go.sum
+          engine/gear.mod
+          engine/gear.sum
           sdk/go.sum
     - name: Setup task
       uses: go-task/setup-task@v1
