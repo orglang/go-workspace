@@ -10,3 +10,4 @@
 !*/go.sum
 !go.work
 !go.work.sum
+!**/*.gen.go
