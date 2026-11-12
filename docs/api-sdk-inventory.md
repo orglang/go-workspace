@@ -69,18 +69,18 @@ The following routes were found in the Echo controller registrations loaded by `
 | POST | `/api/v1/progs` | Raw program text; parsed with `sdkprog.MsgFromText` | 201, no body |
 | POST | `/api/v1/xacts/defs` | `pool/typedef.DefSpec` | 201, `typesem.SemRef` |
 | POST | `/api/v1/procs/decs` | `proc/termdec.DecSpec` | 201, `DecSnap` |
-| GET | `/api/v1/procs/decs/:id` | Path ID/reference binding | 200, `DecSnap` |
-| GET | `/api/v1/procs/:id` | Path ID/reference binding | 200, process `ExecSnap` |
+| GET | `/api/v1/procs/decs/:id` | Handler binds a `termsem.SemRef`; path-ID and revision semantics need verification | 200, `DecSnap` |
+| GET | `/api/v1/procs/:id` | Handler binds a `compsem.SemRef`; path-ID and revision semantics need verification | 200, process `ExecSnap` |
 | POST | `/api/v1/procs/:id/steps` | `proc/compstep.StepSpec` | 200, no body |
 | POST | `/api/v1/types` | `proc/typedef.DefSpec` | 201, `DefSnap` |
-| GET | `/api/v1/types/:id` | Path ID/reference binding | 200, `DefSnap` |
+| GET | `/api/v1/types/:id` | Handler binds a `typesem.SemRef`; path-ID and revision semantics need verification | 200, `DefSnap` |
 | PATCH | `/api/v1/types/:id` | `proc/typedef.DefSnap` | 200, `DefSnap` |
 | POST | `/api/v1/pools/decs` | `pool/termdec.DecSpec` | 201, `termsem.SemRef` |
 | POST | `/api/v1/pools/execs` | `pool/compexec.ExecSpec` | 201, `compsem.SemRef` |
 | POST | `/api/v1/pools/execs/steps` | `pool/compstep.StepSpec` | 204, no body |
 | POST | `/api/v1/pools/execs/spawns` | `pool/compstep.StepSpec` | 201, `compsem.SemRef` |
 
-No list/search endpoints were found in the registered `/api/v1` controllers. The UI presenter routes under `/ssr` are server-rendered web endpoints and are not included in this API inventory.
+The GET handlers bind a reference model that includes both an ID and a revision number, while the route exposes only `:id`. The actual Echo binding and revision semantics must be verified with a runtime test before these operations are specified in TypeSpec. No list/search endpoints were found in the registered `/api/v1` controllers. The UI presenter routes under `/ssr` are server-rendered web endpoints and are not included in this API inventory.
 
 Relevant controller sources:
 - [Program controller](https://github.com/orglang/go-engine/blob/main/internal/prog/adapter/me_echo.go)
