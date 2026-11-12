@@ -10,7 +10,7 @@ Status: discovery snapshot for PR 1. This document records the current repositor
 - `orglang/go-engine` currently exposes a small HTTP API under `/api/v1` through Echo controllers.
 - `orglang/go-sdk` contains public message/DTO models, validation, parser-related API, and handwritten Resty clients. It is not only an HTTP client, and it should not be deleted wholesale as part of generating a client.
 - The only in-organization consumer of `github.com/orglang/go-sdk` found by repository-wide code search is `orglang/go-engine`. It uses SDK models in HTTP adapters and Resty clients in E2E tests. Public downstream consumers outside the organization have not been ruled out.
-- Proposed initial ownership: keep the TypeSpec source and emitted OpenAPI with `orglang/go-sdk`, and place the generated Go client in a dedicated package in that same module (proposed import path: `github.com/orglang/go-sdk/client`). Keep `go-workspace` as the workspace/documentation coordinator, not the API source repository. This is a proposal to confirm before PR 2.
+- Proposed ownership: keep the TypeSpec source and emitted OpenAPI with `orglang/go-engine`, which owns the HTTP server and API behavior. Publish the generated Go client from `orglang/go-sdk` in a dedicated package (proposed import path: `github.com/orglang/go-sdk/client`). Keep existing SDK DTO, validation, and parser packages unless separately proven obsolete. Keep `go-workspace` as the workspace/documentation coordinator.
 
 ## Repository inventory
 
@@ -129,15 +129,16 @@ There are also existing client/server mismatches and incomplete client methods. 
 
 Based on the current repository boundaries:
 
-- **TypeSpec source and emitted OpenAPI:** propose `orglang/go-sdk`, in a dedicated directory (for example, `tsp/` plus a deterministic OpenAPI output directory). This repository already owns the public wire/message models and handwritten HTTP client surface. There is no existing dedicated API-contract repository.
-- **Generated Go client:** propose the same `orglang/go-sdk` module, in a separate generated package (proposed import path `github.com/orglang/go-sdk/client`). This preserves the existing module path while separating generated transport code from legacy message/parser packages.
-- **Server implementation and mapping:** `orglang/go-engine`; generated wire models should be consumed only from inbound/outbound adapters, with explicit mapping to internal core/domain types.
-- **Workspace coordination:** `orglang/go-workspace`; retain `go.work`, cross-module docs, and integration checks here. It is a meta-repository, not a Go module or service.
+- **TypeSpec source and emitted OpenAPI:** `orglang/go-engine`, because it owns the HTTP service, route behavior, and server-side compatibility decisions. Use a dedicated TypeSpec directory (for example, `tsp/`) and a deterministic generated OpenAPI output directory (for example, `openapi/`). The OpenAPI file is generated output, not a separately hand-maintained contract.
+- **Generated Go client:** `orglang/go-sdk`, in a dedicated generated package (proposed import path `github.com/orglang/go-sdk/client`). This keeps the public client independently versioned and avoids coupling SDK consumers to the server module.
+- **Existing SDK surface:** retain `adt/`, `pool/`, `proc/`, `prog/`, validators, and parser-related APIs while they have consumers. Do not treat generated HTTP client code as a replacement for those packages.
+- **Server implementation and mapping:** `orglang/go-engine`; generated/client-facing wire models are used only at inbound/outbound adapter boundaries, with explicit mapping to internal core/domain types.
+- **Workspace coordination:** `orglang/go-workspace`; retain `go.work`, cross-module docs, and integration coordination. It is a meta-repository, not a Go module or service.
 
-This proposal avoids creating another repository before there is a demonstrated need, keeps the public contract beside the Go SDK it describes, and respects the existing engine/SDK repository split. If the intended contract must be owned independently of Go or consumed by multiple language SDKs, a dedicated API-contract repository should be considered instead.
+This separates API ownership from SDK distribution: the service defines its contract, while the Go SDK consumes that contract as a generated artifact. The engine CI should validate TypeSpec and OpenAPI generation. A successful contract change should trigger or provide a reproducible workflow for opening an update PR in `go-sdk`; SDK CI should verify that its generated client matches the pinned contract revision. If the contract later serves multiple language SDKs, this layout also leaves the source contract language-neutral.
 
 ## PR 1 outcome and remaining confirmation
 
 The repository and code inventory is complete for the accessible public `orglang` repositories. The evidence supports `go-engine` as the current server/consumer and `go-sdk` as the current public wire-model/client module. No current TypeSpec/OpenAPI source exists.
 
-The proposed ownership above is a reasoned default, not an irreversible decision. Before PR 2, confirm that the public API contract should be owned by `orglang/go-sdk` and that the generated client should be published from `github.com/orglang/go-sdk/client`. Also confirm the intended public audience and initial API scope.
+The ownership decision is: TypeSpec and generated OpenAPI belong in `orglang/go-engine`; the generated Go client belongs in `orglang/go-sdk` at `github.com/orglang/go-sdk/client`. PR 2 should still confirm the intended public audience and initial API scope before freezing the contract.
