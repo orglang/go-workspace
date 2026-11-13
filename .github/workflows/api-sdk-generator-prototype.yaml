@@ -1,0 +1,94 @@
+name: Go Client Generator Prototype
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "docs/api-sdk-generator-comparison.md"
+      - "tools/api-sdk-generator-prototype/**"
+      - ".github/workflows/api-sdk-generator-prototype.yaml"
+
+permissions:
+  contents: read
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout workspace
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.27.0"
+          check-latest: false
+
+      - name: Download the exact engine contract
+        env:
+          CONTRACT_REVISION: "6f4adf576dd62d34d34c3d19e569966f81a59143"
+        run: |
+          mkdir -p "$RUNNER_TEMP/prototype/input"
+          curl --fail --silent --show-error --location \
+            "https://raw.githubusercontent.com/orglang/go-engine/$CONTRACT_REVISION/openapi/openapi.yaml" \
+            --output "$RUNNER_TEMP/prototype/input/openapi.yaml"
+          sha256sum "$RUNNER_TEMP/prototype/input/openapi.yaml"
+
+      - name: Install pinned generators
+        run: |
+          go install github.com/ogen-go/ogen/cmd/ogen@v1.24.0
+          go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.8.1
+
+      - name: Generate ogen client
+        run: |
+          mkdir -p "$RUNNER_TEMP/prototype/ogen"
+          ogen --target "$RUNNER_TEMP/prototype/ogen" \
+            --package client --clean --no-server \
+            "$RUNNER_TEMP/prototype/input/openapi.yaml"
+
+      - name: Generate oapi-codegen client
+        run: |
+          mkdir -p "$RUNNER_TEMP/prototype/oapi-codegen"
+          oapi-codegen \
+            -generate types,client \
+            -package client \
+            -o "$RUNNER_TEMP/prototype/oapi-codegen/client.gen.go" \
+            "$RUNNER_TEMP/prototype/input/openapi.yaml"
+
+      - name: Compile both generated packages
+        run: |
+          for generator in ogen oapi-codegen; do
+            (
+              cd "$RUNNER_TEMP/prototype/$generator"
+              go mod init "example.com/orglang-generator-prototype/$generator"
+              go mod tidy
+              go test ./...
+            )
+          done
+
+      - name: Report generated size and dependency footprint
+        run: |
+          {
+            echo "## Generator prototype metrics"
+            for generator in ogen oapi-codegen; do
+              dir="$RUNNER_TEMP/prototype/$generator"
+              echo "### $generator"
+              echo "- Go source files: $(find "$dir" -name '*.go' | wc -l)"
+              echo "- Go source lines: $(find "$dir" -name '*.go' -print0 | xargs -0 cat | wc -l)"
+              echo "- Generated Go bytes: $(find "$dir" -name '*.go' -print0 | xargs -0 cat | wc -c)"
+              echo "- Direct module requirements:"
+              (cd "$dir" && go list -m -f '{{if not .Main}}{{.Path}} {{.Version}}{{end}}' all | sed '/^$/d' | head -40)
+            done
+          } | tee "$RUNNER_TEMP/prototype/metrics.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload generated clients and metrics
+        uses: actions/upload-artifact@v6
+        with:
+          name: go-client-generator-prototypes
+          path: |
+            ${{ runner.temp }}/prototype/ogen
+            ${{ runner.temp }}/prototype/oapi-codegen
+            ${{ runner.temp }}/prototype/input/openapi.yaml
+            ${{ runner.temp }}/prototype/metrics.md
+          if-no-files-found: error
+          retention-days: 14
