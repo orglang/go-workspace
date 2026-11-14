@@ -7,10 +7,14 @@ This document captures design questions and candidate conventions for CI. The wo
 One candidate model to evaluate is:
 
 ```text
-deps → specs → sources → binaries → distros
+             ┌─ specs → sources → binaries ─┐
+deps ────────┤                              ├→ distros
+             └─ ...                         ┘
 ```
 
-This is a proposal, not an agreed target architecture. In particular, `deps` may be a cross-cutting prerequisite rather than a stage in a strictly linear pipeline. The graph should describe real input/output dependencies, not prescribe a GitHub Actions workflow for every node.
+This is a proposal, not an agreed target architecture. In particular, `deps` is shared by product work and development tooling; it may be a cross-cutting prerequisite rather than a stage in a strictly linear pipeline. The graph should describe real input/output dependencies, not prescribe a GitHub Actions workflow for every node.
+
+Use `toolchain` for the pinned runtimes and CLI tools required to develop, generate, validate, and build the product. Use `project dependencies` for libraries and packages consumed by the product or its generators. Both belong under the broad dependency concern (`deps`), but they have different installation and validation mechanisms. Neither category needs to be drawn as a separate artifact stage unless it produces a versioned, consumed artifact.
 
 Questions to resolve before adopting the model:
 
@@ -23,7 +27,7 @@ A useful working vocabulary (subject to validation against actual workflows) is:
 
 | Candidate stage | Possible responsibility |
 | --- | --- |
-| `deps` | Validate dependency manifests/lockfiles and prepare runtimes, tools, Go modules, and npm packages |
+| `deps` | Shared dependency concern: validate toolchain pins and project dependency manifests/lockfiles; prepare the required runtimes, CLI tools, Go modules, and npm packages |
 | `specs` | Compile TypeSpec and produce/check OpenAPI |
 | `sources` | Generate Go sources and verify reproducibility |
 | `binaries` | Run relevant tests and build executables from a component revision |
@@ -33,28 +37,18 @@ Do not infer a strict linear dependency merely from this vocabulary. For example
 
 Generated sources should be treated consistently: either the relevant downstream workflow consumes the generated files already present in the exact source revision, or it explicitly owns generation as part of its own contract. Avoid hidden generation side effects and undocumented reliance on workflow execution order.
 
-### Gear and app streams
+### Product and development-tooling concerns
 
-Whether the artifact graph has separate `gear` and `app` streams is an explicit design decision; the labels must describe distinct deliverables, not merely duplicate the same pipeline under two names.
+The product is `app`. The development environment and tools required to work on, generate, validate, and build it are the `toolchain`. Prefer `toolchain` over `gear`: it is more precise and conventional in CI documentation, while `gear` is informal and ambiguous.
 
-Working recommendation:
+These are not automatically two parallel artifact graphs:
 
-- Keep genuinely shared prerequisites and stages unprefixed (for example, `deps`), rather than duplicating them as `gear-deps` and `app-deps`.
-- Branch the graph into `gear` and `app` only at the first point where their inputs, outputs, validation contract, or release lifecycle differ.
-- Keep a stage shared when both streams consume the same artifact produced from the same pinned inputs. Do not create separate `gear` / `app` nodes solely to make the diagram look symmetrical.
-- If both streams have distinct artifacts at a stage, name those nodes explicitly (for example, `gear-binaries` and `app-binaries`). A downstream `distros` node may consume one or both streams; show the actual dependency rather than assuming every stage exists in both.
+- `deps` is a shared, cross-cutting concern that includes both toolchain requirements and project dependencies.
+- `toolchain` covers pinned runtimes and CLI tools (for example Go, Node.js, Task, generators, and linters).
+- Project dependencies are fetched using the relevant package manager (for example Go modules and npm packages).
+- Product stages such as specs, sources, binaries, and distros describe outputs and validation of the `app`; they should not be duplicated as `toolchain-*` stages merely because the toolchain is needed to run them.
 
-The split should be accepted only after confirming that `gear` and `app` are independently meaningful build/release products with distinguishable inputs or outputs. If they are only deployment profiles or packaging variants of one application artifact, represent that distinction at the distribution/package layer instead of splitting the whole graph.
-
-For names, use the same scope vocabulary consistently across graph nodes, workflow filenames, workflow names, and job IDs:
-
-| Scope | Workflow filename pattern | Workflow name pattern | Job ID pattern |
-| --- | --- | --- | --- |
-| Shared | `<stage>.yaml` | `<Stage> <Action>` | `<stage>-<action>` |
-| Gear-specific | `gear-<stage>.yaml` | `Gear <Stage> <Action>` | `gear-<stage>-<action>` |
-| App-specific | `app-<stage>.yaml` | `App <Stage> <Action>` | `app-<stage>-<action>` |
-
-Do not prefix every workflow by default: shared checks keep shared names. Before adopting the split, map each proposed node to a concrete artifact, its exact inputs, and its consumer. Preserve caller-level required-check contexts during any naming migration.
+Use a `toolchain-` prefix only for a genuinely toolchain-specific workflow or check. Product workflows should use product/stage names; shared dependency checks should remain unprefixed (for example, `Deps Check`).
 
 ## Tool responsibilities
 
@@ -86,7 +80,9 @@ Target ownership:
 
 The partial move to local `Binaries` and `Distros` workflows in `go-engine` is consistent with component ownership, but does not by itself settle whether some internal steps should later be shared. Avoid both blanket duplication and premature centralization.
 
-## Revision and merge-queue contract
+## Exact revisions for PR and merge queue
+
+This section is independent of whether the product graph is split into subgraphs. Its purpose is reproducibility: a CI result must describe the exact candidate GitHub is evaluating, not a mixture of that candidate and moving default-branch revisions.
 
 Every run must identify the exact revisions it tests:
 
@@ -129,7 +125,7 @@ Before introducing path-based skips, test PR, draft/ready, and merge-group behav
 
 ## Implementation sequence
 
-1. Evaluate the candidate artifact/dependency model against the operations each workflow actually performs; keep it explicitly provisional until agreed.
+1. Evaluate the candidate artifact/dependency model, including the shared `deps` concern and the distinction between `toolchain` and project dependencies; keep it explicitly provisional until agreed.
 2. Decide workflow ownership and the reusable-workflow boundary without treating either full centralization or full decentralization as a default.
 3. Define the revision contract for PR and merge-group runs, including how compatible cross-repository inputs are selected.
 4. Agree on workflow/job/check naming and inspect required-check configuration before changing any check context.
