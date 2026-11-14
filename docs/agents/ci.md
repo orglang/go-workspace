@@ -2,27 +2,36 @@
 
 This document separates the observed implementation from the target model. The workspace and component repositories have independent Git histories; CI must preserve those boundaries and test explicit revisions.
 
-## Artifact graph
+## Artifact and dependency model
 
-The target dependency path is:
+One candidate model to evaluate is:
 
 ```text
 deps → specs → sources → binaries → distros
 ```
 
-`deps` is a prerequisite, not a distributable artifact. It establishes the toolchain and project dependencies required by downstream stages. The artifact-producing stages are:
+This is a proposal, not an agreed target architecture. In particular, `deps` may be a cross-cutting prerequisite rather than a stage in a strictly linear pipeline. The graph should describe real input/output dependencies, not prescribe a GitHub Actions workflow for every node.
 
-| Stage | Inputs | Output / guarantee |
-| --- | --- | --- |
-| `deps` | mise config and lock, Go module manifests, npm lock | Pinned runtimes/tools and installed Go/npm dependencies |
-| `specs` | TypeSpec sources and npm dependencies | OpenAPI specification, compiled and checked for drift |
-| `sources` | OpenAPI plus generator tools and handwritten Go | Reproducible generated Go sources |
-| `binaries` | Exact component revision with committed generated sources | Tested and built executables |
-| `distros` | Exact workspace/component revisions and binaries/build inputs | Built and verified distributable images/stacks |
+Questions to resolve before adopting the model:
 
-The dependency edges mean that a consumer must have its prerequisites available; they do not require every stage to be implemented as a separate GitHub Actions workflow. A stage may be an explicit job, a task, or a prerequisite step, depending on where it is reused and what artifact boundary it owns.
+- Which stages produce versioned artifacts, and which only prepare or validate inputs?
+- Does each stage consume a persisted output from its predecessor, or can it independently reproduce that output from a pinned revision?
+- Is `deps` a distinct node, or are toolchain and project dependencies prerequisites declared by each consuming stage?
+- Which checks must run independently on PRs and merge-group candidates?
 
-Generated sources are source-controlled inputs to `binaries` and `distros`. Downstream stages must not silently regenerate or modify them. Generation and reproducibility checks belong to `sources`.
+A useful working vocabulary (subject to validation against actual workflows) is:
+
+| Candidate stage | Possible responsibility |
+| --- | --- |
+| `deps` | Validate dependency manifests/lockfiles and prepare runtimes, tools, Go modules, and npm packages |
+| `specs` | Compile TypeSpec and produce/check OpenAPI |
+| `sources` | Generate Go sources and verify reproducibility |
+| `binaries` | Run relevant tests and build executables from a component revision |
+| `distros` | Build and verify distributable images/stacks from pinned component inputs |
+
+Do not infer a strict linear dependency merely from this vocabulary. For example, dependency installation may be shared by multiple stages, and a downstream stage may consume committed generated sources rather than an artifact uploaded by an upstream workflow.
+
+Generated sources should be treated consistently: either the relevant downstream workflow consumes the generated files already present in the exact source revision, or it explicitly owns generation as part of its own contract. Avoid hidden generation side effects and undocumented reliance on workflow execution order.
 
 ## Tool responsibilities
 
@@ -48,9 +57,9 @@ The workspace is a meta-repository containing `go.work` and workspace-level docu
 
 Target ownership:
 
-- **Component repository:** event adapters (`pull_request`, `merge_group`, `push`, `workflow_dispatch`), required check names, component-specific commands, and the exact component revision under test.
-- **Workspace repository:** workspace membership and cross-repository coordination contracts; it may host genuinely shared workflow logic only after a real shared boundary is demonstrated.
-- **Reusable workflows:** optional implementation detail, not the default architecture. Extract a reusable workflow only when multiple components need the same stable operation and the contract can carry exact revisions, permissions, and event-independent inputs. Keep event policy and required-check adapters in each component repository.
+- **Component repository:** event adapters (`pull_request`, `merge_group`, `push`, `workflow_dispatch`), required check names, and component-specific commands.
+- **Workspace repository:** workspace membership and cross-repository coordination. Whether it should also own shared workflow logic remains an open design question.
+- **Reusable workflows:** one option, not a predetermined answer. Compare duplication, caller complexity, cross-repository orchestration, revision handling, and required-check stability before deciding which stages (if any) should be reusable.
 
 The partial move to local `Binaries` and `Distros` workflows in `go-engine` is consistent with component ownership, but does not by itself settle whether some internal steps should later be shared. Avoid both blanket duplication and premature centralization.
 
@@ -96,29 +105,16 @@ Do not put path filters on a required workflow in a way that prevents GitHub fro
 
 Before introducing path-based skips, test PR, draft/ready, and merge-group behavior, including no-relevant-path changes. A skipped internal job must not leave the merge queue waiting for a missing required context.
 
-## Observed implementation (2026-11-14)
-
-The following observations are from the current default branches inspected for issue #118:
-
-- `go-engine` has local `Binaries`, `Distros`, `Sources Generate`, and `Sources Verify` workflows. The workspace repository has no reusable `workflow_call` artifact workflow at present.
-- `Binaries` checks PRs, merge groups, and manual runs. Its job-level draft condition skips the job for draft PRs.
-- `Sources Verify` checks pushes to `main`, PRs, and manual runs. Its job-level draft condition also skips draft PRs.
-- `Distros` declares PR, merge-group, and manual triggers, but its job currently runs only for `merge_group`.
-- The current `Distros` workflow checks out workspace `main` and SDK `main`, checks out the engine candidate, installs dependencies, and then regenerates engine sources before building. The moving workspace/SDK refs and source generation are inconsistent with the exact-revision and stage-boundary goals above.
-- `Sources Generate` is a manual, write-enabled workflow that locks dependencies, installs them, generates specs and sources, then commits changes to the selected branch.
-- `go-engine/mise.toml` defines `deps:lock`, `deps:install`, and `deps:check`. It installs Go/Node and Go CLI tools via mise; `deps:install` separately downloads Go modules and runs `npm ci` for TypeSpec.
-
-These are observations, not claims that the target design is already implemented across all components. The SDK repository still needs a separate CI audit before this model can be called workspace-wide.
-
 ## Implementation sequence
 
-1. Agree on the graph, ownership, revision contract, and naming vocabulary in this document.
-2. Audit every component's current workflows, tasks, rulesets/required checks, and dependency pins; record the actual check contexts before changing names.
-3. Fix `Distros` to consume committed generated sources and exact workspace/engine/SDK revisions.
-4. Define stable caller-level checks for PR, draft/ready, and merge-group runs; migrate required-check rules only after observing the real contexts.
-5. Decide which shared operations, if any, justify reusable workflows. Add them only with explicit revision and permission contracts.
-6. Add safe path-based internal skips and npm download caching only after trigger behavior and cache benefit are verified.
-7. Split implementation across small component PRs; verify each PR's actual checks and merge-queue behavior before proceeding.
+1. Evaluate the candidate artifact/dependency model against the operations each workflow actually performs; keep it explicitly provisional until agreed.
+2. Decide workflow ownership and the reusable-workflow boundary without treating either full centralization or full decentralization as a default.
+3. Define the revision contract for PR and merge-group runs, including how compatible cross-repository inputs are selected.
+4. Agree on workflow/job/check naming and inspect required-check configuration before changing any check context.
+5. Decide how `Distros` consumes generated sources and whether source validation is independently guaranteed for merge-group candidates.
+6. Define triggers and safe path-filter behavior for each required check before adding filters.
+7. Evaluate npm download caching against the existing mise cache; add it only if it gives a measurable benefit.
+8. Implement accepted decisions in small PRs, preserving existing merge gates.
 
 ## Verification after a PR update
 
