@@ -18,7 +18,7 @@ Use `toolchain` as the umbrella term for the software environment required to pe
 - **Dev toolchain:** everything needed to develop, generate, validate, and build that stage's output. This can include an OS, system libraries, language runtimes and SDKs, compilers, generators, linters, CLI tools, and fetched project packages.
 - **Run toolchain:** everything needed to execute that stage's output. This can include an OS, interpreters, shared libraries, other executable components, and runtime packages.
 
-A stage may have either toolchain, both, or neither as a separately managed artifact. The dev and run toolchains may overlap, but need not be identical. Some dependencies may be statically linked into an output and therefore need not be installed in its run toolchain. Configuration that selects application behavior or deployment parameters is related, but is not itself necessarily part of the toolchain.
+A stage may define a dev toolchain, a run toolchain, both, or neither. Either toolchain may be managed as a separate, versioned artifact, or assembled from declared dependencies when needed. The dev and run toolchains may overlap, but need not be identical. Some dependencies may be statically linked into an output and therefore need not be installed in its run toolchain. Configuration that selects application behavior or deployment parameters is related, but is not itself necessarily part of the toolchain.
 
 Use `deps` only as a broad label for dependency management or a task group, not as a claim that all dependencies form one graph node or one linear stage.
 
@@ -90,7 +90,7 @@ Keep toolchain installation distinct from project dependency installation, while
 - **mise** selects pinned development toolchain runtimes and CLI tools from `mise.toml` / `mise.lock` (for example Go, Node.js, Task, linters, and generators). It does not, by itself, define the run toolchain for a deployed app.
 - **Go modules** are downloaded with `GOWORK=off go mod download` for component-local CI. Do not let the workspace's local `go.work` hide module dependency problems.
 - **npm** installs TypeSpec packages from `tsp/package-lock.json` with `npm ci`. mise installs Node.js; it does not install project npm packages.
-- **Run toolchains** should be declared and assembled with the stage that owns the executable output or its distribution (for example Docker base images, OS packages, shared libraries, and runtime services).
+- **Run toolchains** should be declared and assembled with the stage that owns the executable output or its distribution (for example Docker base images, OS packages, shared libraries, and runtime services). Docker Engine and BuildKit are build infrastructure used by the dev toolchain to build container images; they are not part of the image's run toolchain. At runtime, Docker Engine, containerd, or a Kubernetes node's container runtime is likewise host-side execution infrastructure, not a component packaged into the distro. The image's user-space OS, libraries, interpreters, and runtime packages are part of the app's run toolchain.
 - **mise tasks** own development-toolchain and dependency lifecycle operations such as `deps:lock`, `deps:install`, and `deps:check`, where those commands actually manage the corresponding stage inputs.
 - **Task** owns project operations and their composition: `specs:*`, `sources:*`, tests, binaries, and stack tasks.
 
@@ -129,11 +129,44 @@ Therefore:
 
 For `pull_request`, be explicit whether the check tests GitHub's PR merge ref or the PR head. For required merge-queue checks, include the `merge_group` trigger and test the merge-group SHA. Keep permissions least-privilege (normally `contents: read`); grant write access only to a narrowly scoped generation workflow that needs to commit generated files. Never pass long-lived credentials as workflow inputs.
 
-## Naming and required checks
+## Naming tasks, workflows, jobs, and required checks
+
+Keep four concerns separate:
+
+- **Stage** identifies which part of the app lifecycle an operation belongs to: `specs`, `sources`, `binaries`, `distros`, or `workloads`.
+- **Task** names the project operation as `stage:action`, for example `sources:generate` or `distros:build`.
+- **Workflow** defines the CI event boundary and stable check context for a stage or a deliberate stage operation.
+- **Job** names a concrete operation or verification within that workflow.
+
+Do not encode `dev` or `run` in every task, workflow, or job name. These identify the purpose of a toolchain, not another lifecycle stage. A CI job prepares the stage's dev toolchain and then invokes the relevant Task operation. A run toolchain belongs to the executable output or distro being produced/consumed; it is not the environment used to run the CI job. Do not create separate workflows solely because a stage has both dev and run toolchains.
+
+Candidate Task names:
+
+| Stage | Task names |
+| --- | --- |
+| `specs` | `specs:check`, `specs:generate` |
+| `sources` | `sources:generate`, `sources:verify` |
+| `binaries` | `binaries:test`, `binaries:build`, `binaries:verify` |
+| `distros` | `distros:build`, `distros:verify` |
+| `workloads` | `workloads:deploy`, `workloads:verify` |
+
+Candidate workflow and job names:
+
+| Stage | Workflow filename | Workflow name | Job IDs |
+| --- | --- | --- | --- |
+| `specs` | `specs.yaml` | `Specs` | `specs-check` |
+| `sources` | `sources.yaml` | `Sources` | `sources-generate`, `sources-verify` |
+| `binaries` | `binaries.yaml` | `Binaries` | `binaries-test`, `binaries-build` |
+| `distros` | `distros.yaml` | `Distros` | `distros-build`, `distros-verify` |
+| `workloads` | `workloads.yaml` | `Workloads` | `workloads-deploy`, `workloads-verify` |
+
+For example, the `workloads:deploy` task may run in a job whose dev toolchain includes Helm and kubectl, while the selected distro supplies the app's run toolchain. Similarly, the `distros:build` task may use Docker Engine or BuildKit from its dev toolchain to assemble a runtime image; neither tool becomes part of that image's run toolchain.
+
+These names are a proposed convention, not a mandate to rename current files, tasks, or checks immediately. The existing workflow/check mapping below records the current naming shape to account for during migration.
 
 Use lowercase kebab-case workflow filenames, stage-oriented workflow names, and stable job IDs:
 
-| Stage | Workflow filename | Workflow name | Job ID |
+| Current operation | Workflow filename | Workflow name | Job ID |
 | --- | --- | --- | --- |
 | Sources generation | `sources-generate.yaml` | `Sources Generate` | `sources-generate` |
 | Sources verification | `sources-verify.yaml` | `Sources Verify` | `sources-verify` |
