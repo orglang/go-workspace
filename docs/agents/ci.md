@@ -27,7 +27,7 @@ Questions to resolve before adopting the model:
 - Which stages produce versioned artifacts, and which only prepare or validate inputs?
 - Does each stage consume a persisted output from its predecessor, or can it independently reproduce that output from a pinned revision?
 - Are each stage's dev/run toolchains and project dependencies declared by that stage, with shared dependency-management operations composed where useful?
-- Is `deployments` in scope as a product stage, or is deployment intentionally outside the artifact lifecycle covered by this model?
+- Is `deployments` in scope as a lifecycle operation even though its primary result is environment state rather than a distributable artifact? Keep deployment definitions, the deployment operation, and observed environment state distinct.
 - Which checks must run independently on PRs and merge-group candidates?
 
 A useful working vocabulary (subject to validation against actual workflows) is:
@@ -77,11 +77,11 @@ The following is an illustrative composition model, not a required directory lay
 - **Sources** can include application code, generated code, API/schema specifications, templates, static assets, and infrastructure or deployment definitions. These are source inputs regardless of whether they are written by hand or generated. For example, Helm chart source files (`Chart.yaml`, values files, templates, and chart dependency declarations) belong to `sources`; they are not themselves a packaged distro.
 - **Binaries** can include executable files and, where needed, shared libraries or other compiled runtime components. A binary artifact may be a single executable or a set of files; it is not synonymous with a container image.
 - **Distros** can combine or reference binary artifacts, run-toolchain components, and distribution-specific metadata/configuration. Possible components include runtime images, packaged Helm charts, manifests, checksums, and signatures. A chart package can refer to a runtime image by immutable digest without embedding that image. A distro need not contain every component physically; references must still resolve to pinned, reproducible inputs.
-- **Deployments** are instances of a distro applied to a target environment. Their inputs can include a selected distro, environment-specific values, and references to credentials/secrets. Their resulting composition can include workloads and infrastructure resources. The live cluster state and secret values are external state/inputs, not necessarily versioned artifacts produced by the deployment stage.
+- **Deployment definitions** describe desired state and can be maintained as source inputs or distributed with a distro (for example, Helm templates and environment-specific values). **A deployment** is the operation of applying a selected distro and its configuration to a target environment. The resulting environment contains workloads and infrastructure resources, while observed/live state belongs to the target environment rather than being an ordinary packaged artifact. Credentials and secret values are external inputs; avoid treating secret material as part of a distro or deployment artifact.
 
 For Helm specifically, chart source files flow through `sources`; validation and packaging use a dev toolchain that includes Helm; the packaged chart is a distribution artifact in `distros`; and a deployment operation consumes that chart (and the image it references) using deployment tooling such as Helm and kubectl. This illustrates that source, package, and deployment are different lifecycle roles even when they concern the same logical component.
 
-Do not force these compositions into strict trees. Artifacts may be shared by multiple consumers, and one artifact may reference another without containing it. Record whether a relationship means containment, reference, or runtime dependency when that distinction matters.
+Do not force these compositions into strict trees. Artifacts may be shared by multiple consumers, and one artifact may reference another without containing it. Distinguish containment, reference, and dependency where it matters; qualify a dependency as build-time, deployment-time, or runtime only when the lifecycle distinction is relevant.
 
 ## Tool responsibilities
 
