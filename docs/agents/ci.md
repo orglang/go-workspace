@@ -14,13 +14,12 @@ deps ────────┤                              ├→ distros
 
 This is a proposal, not an agreed target architecture. Dependencies are a cross-cutting concern, not necessarily a stage in a strictly linear pipeline. The graph should describe real input/output dependencies, not prescribe a GitHub Actions workflow for every node.
 
-Avoid using `toolchain` as an umbrella for everything needed by the software. Distinguish at least:
+Use `toolchain` as the umbrella term for the software environment required to perform work or execute an output. Describe it relative to a stage and purpose:
 
-- **Build toolchain:** pinned SDKs, runtimes, compilers, generators, linters, and build tools needed to develop, validate, and build the product.
-- **Build-time dependencies:** libraries and packages fetched to compile or generate the product (for example Go modules and TypeSpec npm packages).
-- **Runtime requirements:** interpreters, shared libraries, OS packages, base images, and external services required to run the built product.
+- **Dev toolchain:** everything needed to develop, generate, validate, and build that stage's output. This can include an OS, system libraries, language runtimes and SDKs, compilers, generators, linters, CLI tools, and fetched project packages.
+- **Run toolchain:** everything needed to execute that stage's output. This can include an OS, interpreters, shared libraries, other executable components, and runtime packages.
 
-These categories have different owners and lifecycles. The build toolchain belongs to the development/CI environment; runtime requirements belong to the app's runtime and distribution contract. Some project libraries may be linked into the binary and therefore not require a separate runtime installation. Do not assume every dependency is a separately deployable artifact.
+A stage may have either toolchain, both, or neither as a separately managed artifact. The dev and run toolchains may overlap, but need not be identical. Some dependencies may be statically linked into an output and therefore need not be installed in its run toolchain. Configuration that selects application behavior or deployment parameters is related, but is not itself necessarily part of the toolchain.
 
 Use `deps` only as a broad label for dependency management or a task group, not as a claim that all dependencies form one graph node or one linear stage.
 
@@ -28,14 +27,14 @@ Questions to resolve before adopting the model:
 
 - Which stages produce versioned artifacts, and which only prepare or validate inputs?
 - Does each stage consume a persisted output from its predecessor, or can it independently reproduce that output from a pinned revision?
-- Is `deps` a distinct node, or are toolchain and project dependencies prerequisites declared by each consuming stage?
+- Is `deps` a distinct node, or are each stage's dev/run toolchains and project dependencies prerequisites declared by that stage?
 - Which checks must run independently on PRs and merge-group candidates?
 
 A useful working vocabulary (subject to validation against actual workflows) is:
 
 | Candidate stage | Possible responsibility |
 | --- | --- |
-| `deps` | Broad dependency-management concern; distinguish build-toolchain pins, build-time package dependencies, and app runtime requirements |
+| `deps` | Broad dependency-management concern; manage the dev/run toolchains and stage-specific packages without assuming one artifact node |
 | `specs` | Compile TypeSpec and produce/check OpenAPI |
 | `sources` | Generate Go sources and verify reproducibility |
 | `binaries` | Run relevant tests and build executables from a component revision |
@@ -45,32 +44,27 @@ Do not infer a strict linear dependency merely from this vocabulary. For example
 
 Generated sources should be treated consistently: either the relevant downstream workflow consumes the generated files already present in the exact source revision, or it explicitly owns generation as part of its own contract. Avoid hidden generation side effects and undocumented reliance on workflow execution order.
 
-### Product, build-toolchain, and runtime concerns
+### Stage-specific dev and run toolchains
 
 The product is `app`, but that name identifies the product—not one identical application layout at every lifecycle stage. Its development form and runtime form may differ in composition, dependencies, configuration, and launch method:
 
 - **Development app:** the form used by developers and CI, potentially including source trees, dev servers, hot-reload support, debuggers, test fixtures, and development-only dependencies.
 - **Build artifact:** the output produced from a selected source revision, such as a binary, package, or image. It need not contain the development environment.
-- **Runtime app:** the form actually executed or deployed, consisting of the selected build artifact plus its runtime configuration and required runtime environment.
+- **Runtime app:** the form actually executed or deployed, consisting of the selected build artifact plus its runtime configuration and run toolchain.
 
-Keep the surrounding concerns distinct as well:
+Treat dev and run toolchains as stage-specific contracts, not as two global toolchains for the entire repository. For example, `sources` may need a dev toolchain containing Go and code generators, while its generated source files have no independent run toolchain. `binaries` may need a Go build toolchain and produce an executable whose run toolchain is an OS plus the shared libraries it uses. `distros` may assemble or reference that run toolchain as part of a distributable image.
 
-- Use `build-toolchain` for pinned SDKs and developer/CI tools.
-- Use `runtime` / `runtime-image` for the environment needed to execute the runtime app.
-- Use `build-deps` for packages fetched to generate or compile the app, where a name is needed to distinguish them from runtime requirements.
-- Keep `deps` as a broad task/documentation grouping only when it is useful; do not model it as a single artifact stage merely because these concerns are all dependencies.
-
-These are not parallel artifact graphs. Product stages such as specs, sources, binaries, and distros describe outputs and validation across the app lifecycle. Runtime requirements become visible where the runtime app is packaged or deployed; build-toolchain and build-dependency requirements are prerequisites for the CI jobs that produce or validate those outputs. Do not assume the development app is itself the deployable runtime app, or that the build artifact includes either environment in full.
+These are not parallel artifact graphs. Product stages such as specs, sources, binaries, and distros describe outputs and validation across the app lifecycle. Each stage declares the toolchains needed to produce/validate its output and, where that output is independently executable, to run it. Do not assume the development app is itself the deployable runtime app, or that the build artifact includes either toolchain in full.
 
 ## Tool responsibilities
 
-Keep toolchain installation distinct from project dependency installation:
+Keep toolchain installation distinct from project dependency installation, while treating both as inputs to the relevant stage's dev or run toolchain:
 
-- **mise** selects pinned build-toolchain runtimes and CLI tools from `mise.toml` / `mise.lock` (for example Go, Node.js, Task, linters, and generators). It does not define the production runtime contract by itself.
+- **mise** selects pinned development toolchain runtimes and CLI tools from `mise.toml` / `mise.lock` (for example Go, Node.js, Task, linters, and generators). It does not, by itself, define the run toolchain for a deployed app.
 - **Go modules** are downloaded with `GOWORK=off go mod download` for component-local CI. Do not let the workspace's local `go.work` hide module dependency problems.
-- **npm** installs TypeSpec build-time packages from `tsp/package-lock.json` with `npm ci`. mise installs Node.js; it does not install project npm packages.
-- **Runtime requirements** should be declared and assembled with the app/distribution (for example Docker base images, OS packages, and runtime services), not hidden in the developer toolchain.
-- **mise tasks** own build-toolchain and dependency lifecycle operations such as `deps:lock`, `deps:install`, and `deps:check`, where those commands actually manage the corresponding development/build inputs.
+- **npm** installs TypeSpec packages from `tsp/package-lock.json` with `npm ci`. mise installs Node.js; it does not install project npm packages.
+- **Run toolchains** should be declared and assembled with the stage that owns the executable output or its distribution (for example Docker base images, OS packages, shared libraries, and runtime services).
+- **mise tasks** own development-toolchain and dependency lifecycle operations such as `deps:lock`, `deps:install`, and `deps:check`, where those commands actually manage the corresponding stage inputs.
 - **Task** owns project operations and their composition: `specs:*`, `sources:*`, tests, binaries, and stack tasks.
 
 Do not add a second entry point for the same operation. If a command is a toolchain/dependency lifecycle operation, expose it through mise; if it is a project operation or composes project tasks, expose it through Task.
@@ -140,7 +134,7 @@ Before introducing path-based skips, test PR, draft/ready, and merge-group behav
 
 ## Implementation sequence
 
-1. Evaluate the candidate artifact/dependency model, distinguishing build toolchain, build-time dependencies, and app runtime requirements; keep it explicitly provisional until agreed.
+1. Evaluate the candidate artifact/dependency model, defining stage-specific dev and run toolchains and keeping the graph explicitly provisional until agreed.
 2. Decide workflow ownership and the reusable-workflow boundary without treating either full centralization or full decentralization as a default.
 3. Define the revision contract for PR and merge-group runs, including how compatible cross-repository inputs are selected.
 4. Agree on workflow/job/check naming and inspect required-check configuration before changing any check context.
