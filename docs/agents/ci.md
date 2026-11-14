@@ -12,9 +12,17 @@ deps ────────┤                              ├→ distros
              └─ ...                         ┘
 ```
 
-This is a proposal, not an agreed target architecture. In particular, `deps` is shared by product work and development tooling; it may be a cross-cutting prerequisite rather than a stage in a strictly linear pipeline. The graph should describe real input/output dependencies, not prescribe a GitHub Actions workflow for every node.
+This is a proposal, not an agreed target architecture. Dependencies are a cross-cutting concern, not necessarily a stage in a strictly linear pipeline. The graph should describe real input/output dependencies, not prescribe a GitHub Actions workflow for every node.
 
-Use `toolchain` for the pinned runtimes and CLI tools required to develop, generate, validate, and build the product. Use `project dependencies` for libraries and packages consumed by the product or its generators. Both belong under the broad dependency concern (`deps`), but they have different installation and validation mechanisms. Neither category needs to be drawn as a separate artifact stage unless it produces a versioned, consumed artifact.
+Avoid using `toolchain` as an umbrella for everything needed by the software. Distinguish at least:
+
+- **Build toolchain:** pinned SDKs, runtimes, compilers, generators, linters, and build tools needed to develop, validate, and build the product.
+- **Build-time dependencies:** libraries and packages fetched to compile or generate the product (for example Go modules and TypeSpec npm packages).
+- **Runtime requirements:** interpreters, shared libraries, OS packages, base images, and external services required to run the built product.
+
+These categories have different owners and lifecycles. The build toolchain belongs to the development/CI environment; runtime requirements belong to the app's runtime and distribution contract. Some project libraries may be linked into the binary and therefore not require a separate runtime installation. Do not assume every dependency is a separately deployable artifact.
+
+Use `deps` only as a broad label for dependency management or a task group, not as a claim that all dependencies form one graph node or one linear stage.
 
 Questions to resolve before adopting the model:
 
@@ -27,7 +35,7 @@ A useful working vocabulary (subject to validation against actual workflows) is:
 
 | Candidate stage | Possible responsibility |
 | --- | --- |
-| `deps` | Shared dependency concern: validate toolchain pins and project dependency manifests/lockfiles; prepare the required runtimes, CLI tools, Go modules, and npm packages |
+| `deps` | Broad dependency-management concern; distinguish build-toolchain pins, build-time package dependencies, and app runtime requirements |
 | `specs` | Compile TypeSpec and produce/check OpenAPI |
 | `sources` | Generate Go sources and verify reproducibility |
 | `binaries` | Run relevant tests and build executables from a component revision |
@@ -37,27 +45,26 @@ Do not infer a strict linear dependency merely from this vocabulary. For example
 
 Generated sources should be treated consistently: either the relevant downstream workflow consumes the generated files already present in the exact source revision, or it explicitly owns generation as part of its own contract. Avoid hidden generation side effects and undocumented reliance on workflow execution order.
 
-### Product and development-tooling concerns
+### Product, build-toolchain, and runtime concerns
 
-The product is `app`. The development environment and tools required to work on, generate, validate, and build it are the `toolchain`. Prefer `toolchain` over `gear`: it is more precise and conventional in CI documentation, while `gear` is informal and ambiguous.
+The product is `app`. Its development/build environment and its production runtime are distinct concerns:
 
-These are not automatically two parallel artifact graphs:
+- Use `build-toolchain` (or `toolchain` where the context is unambiguous) for pinned SDKs and developer/CI tools.
+- Use `runtime` / `runtime-image` for the environment needed to execute the built app.
+- Use `build-deps` for packages fetched to generate or compile the app, where a name is needed to distinguish them from runtime requirements.
+- Keep `deps` as a broad task/documentation grouping only when it is useful; do not model it as a single artifact stage merely because these concerns are all dependencies.
 
-- `deps` is a shared, cross-cutting concern that includes both toolchain requirements and project dependencies.
-- `toolchain` covers pinned runtimes and CLI tools (for example Go, Node.js, Task, generators, and linters).
-- Project dependencies are fetched using the relevant package manager (for example Go modules and npm packages).
-- Product stages such as specs, sources, binaries, and distros describe outputs and validation of the `app`; they should not be duplicated as `toolchain-*` stages merely because the toolchain is needed to run them.
-
-Use a `toolchain-` prefix only for a genuinely toolchain-specific workflow or check. Product workflows should use product/stage names; shared dependency checks should remain unprefixed (for example, `Deps Check`).
+These are not two parallel artifact graphs. Product stages such as specs, sources, binaries, and distros describe outputs and validation of the `app`. Runtime requirements should become visible where the app is packaged or deployed; build-toolchain requirements are prerequisites for the CI jobs that produce or validate those outputs.
 
 ## Tool responsibilities
 
 Keep toolchain installation distinct from project dependency installation:
 
-- **mise** selects pinned runtimes and CLI tools from `mise.toml` / `mise.lock` (for example Go, Node.js, Task, linters, and generators).
+- **mise** selects pinned build-toolchain runtimes and CLI tools from `mise.toml` / `mise.lock` (for example Go, Node.js, Task, linters, and generators). It does not define the production runtime contract by itself.
 - **Go modules** are downloaded with `GOWORK=off go mod download` for component-local CI. Do not let the workspace's local `go.work` hide module dependency problems.
-- **npm** installs TypeSpec project packages from `tsp/package-lock.json` with `npm ci`. mise installs Node.js; it does not install project npm packages.
-- **mise tasks** own toolchain and dependency lifecycle operations such as `deps:lock`, `deps:install`, and `deps:check`.
+- **npm** installs TypeSpec build-time packages from `tsp/package-lock.json` with `npm ci`. mise installs Node.js; it does not install project npm packages.
+- **Runtime requirements** should be declared and assembled with the app/distribution (for example Docker base images, OS packages, and runtime services), not hidden in the developer toolchain.
+- **mise tasks** own build-toolchain and dependency lifecycle operations such as `deps:lock`, `deps:install`, and `deps:check`, where those commands actually manage the corresponding development/build inputs.
 - **Task** owns project operations and their composition: `specs:*`, `sources:*`, tests, binaries, and stack tasks.
 
 Do not add a second entry point for the same operation. If a command is a toolchain/dependency lifecycle operation, expose it through mise; if it is a project operation or composes project tasks, expose it through Task.
@@ -82,16 +89,18 @@ The partial move to local `Binaries` and `Distros` workflows in `go-engine` is c
 
 ## Exact revisions for PR and merge queue
 
-This section is independent of whether the product graph is split into subgraphs. Its purpose is reproducibility: a CI result must describe the exact candidate GitHub is evaluating, not a mixture of that candidate and moving default-branch revisions.
+This section is independent of the product graph. It describes what a repository's own merge queue can and cannot guarantee.
 
-Every run must identify the exact revisions it tests:
+For a `merge_group` run, GitHub provides a synthetic merge-group ref and SHA for the candidate in the repository whose queue raised the event. Checking out the event's default ref/SHA tests that candidate (including the queued PR changes and the target branch state represented by the merge group). GitHub's merge-group event does **not** automatically provide matching candidate SHAs for other repositories.
 
-- component revision under test (PR head for PR checks; merge-group candidate for `merge_group`);
-- workspace revision used for workspace files and configuration;
+Therefore:
 
-Do not silently substitute `main` for any revision that is part of the candidate being verified. A moving default branch is not a reproducible dependency pin. The mechanism for selecting compatible cross-repository revisions must be explicit (for example a checked-in compatibility manifest or explicit workflow inputs); do not invent a revision-selection rule in an individual workflow.
+- For same-repository code and configuration, test the merge-group candidate SHA.
+- For cross-repository inputs, use immutable revisions explicitly pinned by the candidate under test (for example in a checked-in compatibility manifest), or another deliberately designed coordination mechanism.
+- Do not claim that a component merge queue tests a simultaneous candidate from the workspace or another component unless such a candidate mapping is explicitly supplied and verified.
+- If cross-repository compatibility cannot be represented reproducibly, state that limitation and choose a separate integration strategy; do not silently check out `main`.
 
-For `merge_group`, verify the merge candidate and the corresponding compatible dependency revisions. Do not use a PR head SHA in place of the merge-group SHA. Keep permissions least-privilege (normally `contents: read`); grant write access only to a narrowly scoped generation workflow that needs to commit generated files. Never pass long-lived credentials as workflow inputs.
+For `pull_request`, be explicit whether the check tests GitHub's PR merge ref or the PR head. For required merge-queue checks, include the `merge_group` trigger and test the merge-group SHA. Keep permissions least-privilege (normally `contents: read`); grant write access only to a narrowly scoped generation workflow that needs to commit generated files. Never pass long-lived credentials as workflow inputs.
 
 ## Naming and required checks
 
@@ -125,7 +134,7 @@ Before introducing path-based skips, test PR, draft/ready, and merge-group behav
 
 ## Implementation sequence
 
-1. Evaluate the candidate artifact/dependency model, including the shared `deps` concern and the distinction between `toolchain` and project dependencies; keep it explicitly provisional until agreed.
+1. Evaluate the candidate artifact/dependency model, distinguishing build toolchain, build-time dependencies, and app runtime requirements; keep it explicitly provisional until agreed.
 2. Decide workflow ownership and the reusable-workflow boundary without treating either full centralization or full decentralization as a default.
 3. Define the revision contract for PR and merge-group runs, including how compatible cross-repository inputs are selected.
 4. Agree on workflow/job/check naming and inspect required-check configuration before changing any check context.
