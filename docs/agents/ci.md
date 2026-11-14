@@ -8,7 +8,7 @@ One candidate model to evaluate is:
 
 ```text
 specs → sources → binaries ─┐
-other inputs ───────────────┴→ distros → deployments
+other inputs ───────────────┴→ distros → workloads
 ```
 
 This is a proposal, not an agreed target architecture. The graph describes candidate product stages and their input/output relationships; it does not prescribe a GitHub Actions workflow for every node. Dependencies are declared per stage and per toolchain. Dependency management is cross-cutting and is not a product stage in this model.
@@ -27,7 +27,7 @@ Questions to resolve before adopting the model:
 - Which stages produce versioned artifacts, and which only prepare or validate inputs?
 - Does each stage consume a persisted output from its predecessor, or can it independently reproduce that output from a pinned revision?
 - Are each stage's dev/run toolchains and project dependencies declared by that stage, with shared dependency-management operations composed where useful?
-- Is `deployments` in scope as a lifecycle operation even though its primary result is environment state rather than a distributable artifact? Keep deployment definitions, the deployment operation, and observed environment state distinct.
+- Are `workloads` in scope as the final lifecycle stage, representing applications running in a target environment rather than another distributable artifact?
 - Which checks must run independently on PRs and merge-group candidates?
 
 A useful working vocabulary (subject to validation against actual workflows) is:
@@ -38,7 +38,7 @@ A useful working vocabulary (subject to validation against actual workflows) is:
 | `sources` | Generate Go sources and verify reproducibility |
 | `binaries` | Run relevant tests and build executable files from a component revision |
 | `distros` | Assemble and verify distribution artifacts, such as runtime images and Helm charts, from pinned app artifacts, run toolchains, and distribution configuration |
-| `deployments` | Deploy a selected distro to a target environment and verify the resulting deployment |
+| `workloads` | Run and verify an application deployed from a selected distro in a target environment |
 
 Do not infer a strict linear dependency merely from this vocabulary. For example, dependency installation may be shared by multiple stages, and a downstream stage may consume committed generated sources rather than an artifact uploaded by an upstream workflow.
 
@@ -54,9 +54,9 @@ The product is `app`, but that name identifies the product—not one identical a
 
 Treat dev and run toolchains as stage-specific contracts, not as two global toolchains for the entire repository. For example, `sources` may need a dev toolchain containing Go and code generators, while its generated source files have no independent run toolchain. `binaries` may need a Go build toolchain and produce an executable whose run toolchain is an OS plus the shared libraries it uses. `distros` assembles distribution artifacts by packaging or referencing the app binary, its run toolchain, and distribution-specific configuration. A runtime image may bundle these together; a Helm chart may instead reference the image by immutable digest and carry deployment templates and defaults.
 
-If deployment is included as a stage, its **dev toolchain** may include Helm, kubectl, cluster-authentication plugins, and tools for validating rendered manifests. Its inputs include a selected distro (for example, a Helm chart and the image it references), environment-specific values, and target-environment identity/access. The chart is not itself the deployment toolchain: it is an input artifact consumed by the deployment operation. The resulting deployed workload is not necessarily a separately versioned artifact of the deployment stage.
+If `workloads` is included as a stage, its **dev toolchain** may include Helm, kubectl, cluster-authentication plugins, and tools for validating rendered manifests. Its inputs include a selected distro (for example, a Helm chart and the image it references), environment-specific values, and target-environment identity/access. The workload is the running application in that target environment, not another packaged distro artifact.
 
-These are not parallel artifact graphs. Product stages such as specs, sources, binaries, distros, and—if in scope—deployments describe outputs and validation across the app lifecycle. Each stage declares the toolchains needed to produce/validate its output and, where that output is independently executable, to run it. Do not assume the development app is itself the deployable runtime app, or that the build artifact includes either toolchain in full.
+These are not parallel artifact graphs. Product stages such as specs, sources, binaries, distros, and—if in scope—workloads describe outputs and validation across the app lifecycle. Each stage declares the toolchains needed to produce/validate its output and, where that output is independently executable, to run it. Do not assume the development app is itself the deployable runtime app, or that the build artifact includes either toolchain in full.
 
 An infrastructure-provisioning stage illustrates the same distinction without requiring a compiled application artifact:
 
@@ -77,9 +77,9 @@ The following is an illustrative composition model, not a required directory lay
 - **Sources** can include application code, generated code, API/schema specifications, templates, static assets, and infrastructure or deployment definitions. These are source inputs regardless of whether they are written by hand or generated. For example, Helm chart source files (`Chart.yaml`, values files, templates, and chart dependency declarations) belong to `sources`; they are not themselves a packaged distro.
 - **Binaries** can include executable files and, where needed, shared libraries or other compiled runtime components. A binary artifact may be a single executable or a set of files; it is not synonymous with a container image.
 - **Distros** can combine or reference binary artifacts, run-toolchain components, and distribution-specific metadata/configuration. Possible components include runtime images, packaged Helm charts, manifests, checksums, and signatures. A chart package can refer to a runtime image by immutable digest without embedding that image. A distro need not contain every component physically; references must still resolve to pinned, reproducible inputs.
-- **Deployment definitions** describe desired state and can be maintained as source inputs or distributed with a distro (for example, Helm templates and environment-specific values). **A deployment** is the operation of applying a selected distro and its configuration to a target environment. The resulting environment contains workloads and infrastructure resources, while observed/live state belongs to the target environment rather than being an ordinary packaged artifact. Credentials and secret values are external inputs; avoid treating secret material as part of a distro or deployment artifact.
+- **Workloads** are applications running in a target environment. They are the result of deploying a selected distro, not another packaged artifact. Credentials and secret values remain external inputs; do not treat secret material as part of a distro.
 
-For Helm specifically, chart source files flow through `sources`; validation and packaging use a dev toolchain that includes Helm; the packaged chart is a distribution artifact in `distros`; and a deployment operation consumes that chart (and the image it references) using deployment tooling such as Helm and kubectl. This illustrates that source, package, and deployment are different lifecycle roles even when they concern the same logical component.
+For Helm specifically, chart source files flow through `sources`; validation and packaging use a dev toolchain that includes Helm; the packaged chart is a distribution artifact in `distros`; and Helm/kubectl can deploy that chart (and the image it references) as a workload. This illustrates that source, package, and deployment are different lifecycle roles even when they concern the same logical component.
 
 Do not force these compositions into strict trees. Artifacts may be shared by multiple consumers, and one artifact may reference another without containing it. Distinguish containment, reference, and dependency where it matters; qualify a dependency as build-time, deployment-time, or runtime only when the lifecycle distinction is relevant.
 
