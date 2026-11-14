@@ -67,6 +67,22 @@ An infrastructure-provisioning stage illustrates the same distinction without re
 
 This example also shows that a stage's dev toolchain can execute an operation whose output is another stage's run toolchain; the two contracts describe different sides of the operation.
 
+
+### Artifact composition
+
+The lifecycle graph describes dependencies between stages. It does not describe the internal composition of each stage's artifacts. Keep these two views separate: an artifact produced by one stage can be composed of multiple parts, and an artifact can become an input to a later stage.
+
+The following is an illustrative composition model, not a required directory layout or a claim that every component has all these parts:
+
+- **Sources** can include application code, generated code, API/schema specifications, templates, static assets, and infrastructure or deployment definitions. These are source inputs regardless of whether they are written by hand or generated. For example, Helm chart source files (`Chart.yaml`, values files, templates, and chart dependency declarations) belong to `sources`; they are not themselves a packaged distro.
+- **Binaries** can include executable files and, where needed, shared libraries or other compiled runtime components. A binary artifact may be a single executable or a set of files; it is not synonymous with a container image.
+- **Distros** can combine or reference binary artifacts, run-toolchain components, and distribution-specific metadata/configuration. Possible components include runtime images, packaged Helm charts, manifests, checksums, and signatures. A chart package can refer to a runtime image by immutable digest without embedding that image. A distro need not contain every component physically; references must still resolve to pinned, reproducible inputs.
+- **Deployments** are instances of a distro applied to a target environment. Their inputs can include a selected distro, environment-specific values, and references to credentials/secrets. Their resulting composition can include workloads and infrastructure resources. The live cluster state and secret values are external state/inputs, not necessarily versioned artifacts produced by the deployment stage.
+
+For Helm specifically, chart source files flow through `sources`; validation and packaging use a dev toolchain that includes Helm; the packaged chart is a distribution artifact in `distros`; and a deployment operation consumes that chart (and the image it references) using deployment tooling such as Helm and kubectl. This illustrates that source, package, and deployment are different lifecycle roles even when they concern the same logical component.
+
+Do not force these compositions into strict trees. Artifacts may be shared by multiple consumers, and one artifact may reference another without containing it. Record whether a relationship means containment, reference, or runtime dependency when that distinction matters.
+
 ## Tool responsibilities
 
 Keep toolchain installation distinct from project dependency installation, while treating both as inputs to the relevant stage's dev or run toolchain:
