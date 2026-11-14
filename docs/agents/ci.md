@@ -8,7 +8,7 @@ One candidate model to evaluate is:
 
 ```text
 specs → sources → binaries ─┐
-other inputs ───────────────┴→ distros
+other inputs ───────────────┴→ distros → deployments
 ```
 
 This is a proposal, not an agreed target architecture. The graph describes candidate product stages and their input/output relationships; it does not prescribe a GitHub Actions workflow for every node. Dependencies are declared per stage and per toolchain. Dependency management is cross-cutting and is not a product stage in this model.
@@ -27,6 +27,7 @@ Questions to resolve before adopting the model:
 - Which stages produce versioned artifacts, and which only prepare or validate inputs?
 - Does each stage consume a persisted output from its predecessor, or can it independently reproduce that output from a pinned revision?
 - Are each stage's dev/run toolchains and project dependencies declared by that stage, with shared dependency-management operations composed where useful?
+- Is `deployments` in scope as a product stage, or is deployment intentionally outside the artifact lifecycle covered by this model?
 - Which checks must run independently on PRs and merge-group candidates?
 
 A useful working vocabulary (subject to validation against actual workflows) is:
@@ -35,8 +36,9 @@ A useful working vocabulary (subject to validation against actual workflows) is:
 | --- | --- |
 | `specs` | Compile TypeSpec and produce/check OpenAPI |
 | `sources` | Generate Go sources and verify reproducibility |
-| `binaries` | Run relevant tests and build executables from a component revision |
-| `distros` | Assemble and verify distribution artifacts from pinned app artifacts, run toolchains, and distribution configuration |
+| `binaries` | Run relevant tests and build executable files from a component revision |
+| `distros` | Assemble and verify distribution artifacts, such as runtime images and Helm charts, from pinned app artifacts, run toolchains, and distribution configuration |
+| `deployments` | Deploy a selected distro to a target environment and verify the resulting deployment |
 
 Do not infer a strict linear dependency merely from this vocabulary. For example, dependency installation may be shared by multiple stages, and a downstream stage may consume committed generated sources rather than an artifact uploaded by an upstream workflow.
 
@@ -44,15 +46,17 @@ Generated sources should be treated consistently: either the relevant downstream
 
 ### Stage-specific dev and run toolchains
 
-The product is `app`, but that name identifies the product—not one identical application layout at every lifecycle stage. Its development form and runtime form may differ in composition, dependencies, configuration, and launch method. A `distro` is the distribution artifact: it packages or references the runtime app together with the run toolchain and distribution-specific configuration. The runtime image is one possible form of a distro, not the run toolchain itself:
+The product is `app`, but that name identifies the product—not one identical application layout at every lifecycle stage. Its development form and runtime form may differ in composition, dependencies, configuration, and launch method. A `distro` is the distribution artifact: it packages or references the runtime app together with the run toolchain and distribution-specific configuration. A runtime image is one possible form of a distro, not the run toolchain itself. A Helm chart is another possible distro artifact: it can reference a pinned runtime image and describe how to deploy it without containing the image itself.
 
 - **Development app:** the form used by developers and CI, potentially including source trees, dev servers, hot-reload support, debuggers, test fixtures, and development-only dependencies.
-- **Build artifact:** the output produced from a selected source revision, such as a binary, package, or image. It need not contain the development environment.
+- **Build artifact:** the output produced from a selected source revision, such as an executable binary. It need not contain the development environment.
 - **Runtime app:** the form actually executed or deployed, consisting of the selected build artifact plus its runtime configuration and run toolchain.
 
-Treat dev and run toolchains as stage-specific contracts, not as two global toolchains for the entire repository. For example, `sources` may need a dev toolchain containing Go and code generators, while its generated source files have no independent run toolchain. `binaries` may need a Go build toolchain and produce an executable whose run toolchain is an OS plus the shared libraries it uses. `distros` assembles the distribution artifact by packaging or referencing the app artifact and its run toolchain; for example, a runtime image can contain both.
+Treat dev and run toolchains as stage-specific contracts, not as two global toolchains for the entire repository. For example, `sources` may need a dev toolchain containing Go and code generators, while its generated source files have no independent run toolchain. `binaries` may need a Go build toolchain and produce an executable whose run toolchain is an OS plus the shared libraries it uses. `distros` assembles distribution artifacts by packaging or referencing the app binary, its run toolchain, and distribution-specific configuration. A runtime image may bundle these together; a Helm chart may instead reference the image by immutable digest and carry deployment templates and defaults.
 
-These are not parallel artifact graphs. Product stages such as specs, sources, binaries, and distros describe outputs and validation across the app lifecycle. Each stage declares the toolchains needed to produce/validate its output and, where that output is independently executable, to run it. Do not assume the development app is itself the deployable runtime app, or that the build artifact includes either toolchain in full.
+If deployment is included as a stage, its **dev toolchain** may include Helm, kubectl, cluster-authentication plugins, and tools for validating rendered manifests. Its inputs include a selected distro (for example, a Helm chart and the image it references), environment-specific values, and target-environment identity/access. The chart is not itself the deployment toolchain: it is an input artifact consumed by the deployment operation. The resulting deployed workload is not necessarily a separately versioned artifact of the deployment stage.
+
+These are not parallel artifact graphs. Product stages such as specs, sources, binaries, distros, and—if in scope—deployments describe outputs and validation across the app lifecycle. Each stage declares the toolchains needed to produce/validate its output and, where that output is independently executable, to run it. Do not assume the development app is itself the deployable runtime app, or that the build artifact includes either toolchain in full.
 
 An infrastructure-provisioning stage illustrates the same distinction without requiring a compiled application artifact:
 
