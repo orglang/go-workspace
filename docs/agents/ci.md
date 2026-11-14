@@ -1,6 +1,6 @@
 # CI and Verification
 
-This document separates the observed implementation from the target model. The workspace and component repositories have independent Git histories; CI must preserve those boundaries and test explicit revisions.
+This document captures design questions and candidate conventions for CI. The workspace and component repositories have independent Git histories; CI must preserve those boundaries and test explicit revisions.
 
 ## Artifact and dependency model
 
@@ -53,7 +53,7 @@ For npm caching, prefer caching the npm download cache keyed by the lockfile and
 
 GitHub events are delivered to the repository that owns the workflow file. Therefore component repositories own event-triggered workflows and their stable check contexts.
 
-The workspace is a meta-repository containing `go.work` and workspace-level documentation. It does not currently contain a `workflow_call` implementation for the component artifact stages. Do not describe it as the owner of reusable artifact workflows unless such workflows are actually added.
+The workspace is a meta-repository containing `go.work` and workspace-level documentation. Whether it should also own reusable workflow implementations is an open design decision; decide this from actual cross-repository reuse and orchestration needs.
 
 Target ownership:
 
@@ -69,9 +69,8 @@ Every run must identify the exact revisions it tests:
 
 - component revision under test (PR head for PR checks; merge-group candidate for `merge_group`);
 - workspace revision used for workspace files and configuration;
-- SDK revision consumed by the component.
 
-Do not silently substitute `main` for any revision that is part of the candidate being verified. A moving default branch is not a reproducible dependency pin. The mechanism for selecting a compatible SDK/workspace revision must be explicit (for example a checked-in compatibility manifest or explicit workflow inputs); do not invent a revision-selection rule in an individual workflow.
+Do not silently substitute `main` for any revision that is part of the candidate being verified. A moving default branch is not a reproducible dependency pin. The mechanism for selecting compatible cross-repository revisions must be explicit (for example a checked-in compatibility manifest or explicit workflow inputs); do not invent a revision-selection rule in an individual workflow.
 
 For `merge_group`, verify the merge candidate and the corresponding compatible dependency revisions. Do not use a PR head SHA in place of the merge-group SHA. Keep permissions least-privilege (normally `contents: read`); grant write access only to a narrowly scoped generation workflow that needs to commit generated files. Never pass long-lived credentials as workflow inputs.
 
