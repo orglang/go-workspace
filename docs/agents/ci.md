@@ -47,14 +47,20 @@ Generated sources should be treated consistently: either the relevant downstream
 
 ### Product, build-toolchain, and runtime concerns
 
-The product is `app`. Its development/build environment and its production runtime are distinct concerns:
+The product is `app`, but that name identifies the product—not one identical application layout at every lifecycle stage. Its development form and runtime form may differ in composition, dependencies, configuration, and launch method:
 
-- Use `build-toolchain` (or `toolchain` where the context is unambiguous) for pinned SDKs and developer/CI tools.
-- Use `runtime` / `runtime-image` for the environment needed to execute the built app.
+- **Development app:** the form used by developers and CI, potentially including source trees, dev servers, hot-reload support, debuggers, test fixtures, and development-only dependencies.
+- **Build artifact:** the output produced from a selected source revision, such as a binary, package, or image. It need not contain the development environment.
+- **Runtime app:** the form actually executed or deployed, consisting of the selected build artifact plus its runtime configuration and required runtime environment.
+
+Keep the surrounding concerns distinct as well:
+
+- Use `build-toolchain` for pinned SDKs and developer/CI tools.
+- Use `runtime` / `runtime-image` for the environment needed to execute the runtime app.
 - Use `build-deps` for packages fetched to generate or compile the app, where a name is needed to distinguish them from runtime requirements.
 - Keep `deps` as a broad task/documentation grouping only when it is useful; do not model it as a single artifact stage merely because these concerns are all dependencies.
 
-These are not two parallel artifact graphs. Product stages such as specs, sources, binaries, and distros describe outputs and validation of the `app`. Runtime requirements should become visible where the app is packaged or deployed; build-toolchain requirements are prerequisites for the CI jobs that produce or validate those outputs.
+These are not parallel artifact graphs. Product stages such as specs, sources, binaries, and distros describe outputs and validation across the app lifecycle. Runtime requirements become visible where the runtime app is packaged or deployed; build-toolchain and build-dependency requirements are prerequisites for the CI jobs that produce or validate those outputs. Do not assume the development app is itself the deployable runtime app, or that the build artifact includes either environment in full.
 
 ## Tool responsibilities
 
