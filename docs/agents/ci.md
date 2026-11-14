@@ -27,7 +27,7 @@ Questions to resolve before adopting the model:
 - Which stages produce versioned artifacts, and which only prepare or validate inputs?
 - Does each stage consume a persisted output from its predecessor, or can it independently reproduce that output from a pinned revision?
 - Are each stage's dev/run toolchains and project dependencies declared by that stage, with shared dependency-management operations composed where useful?
-- Are `workloads` in scope as the final lifecycle stage, representing applications running in a target environment rather than another distributable artifact?
+- What are the inputs, dev toolchain, run toolchain, and verification contract for `workloads`, which represents an application running in a target environment rather than another distributable artifact?
 - Which checks must run independently on PRs and merge-group candidates?
 
 A useful working vocabulary (subject to validation against actual workflows) is:
@@ -54,9 +54,9 @@ The product is `app`, but that name identifies the product—not one identical a
 
 Treat dev and run toolchains as stage-specific contracts, not as two global toolchains for the entire repository. For example, `sources` may need a dev toolchain containing Go and code generators, while its generated source files have no independent run toolchain. `binaries` may need a Go build toolchain and produce an executable whose run toolchain is an OS plus the shared libraries it uses. `distros` assembles distribution artifacts by packaging or referencing the app binary, its run toolchain, and distribution-specific configuration. A runtime image may bundle these together; a Helm chart may instead reference the image by immutable digest and carry deployment templates and defaults.
 
-If `workloads` is included as a stage, its **dev toolchain** may include Helm, kubectl, cluster-authentication plugins, and tools for validating rendered manifests. Its inputs include a selected distro (for example, a Helm chart and the image it references), environment-specific values, and target-environment identity/access. The workload is the running application in that target environment, not another packaged distro artifact.
+The `workloads` stage's **dev toolchain** may include Helm, kubectl, cluster-authentication plugins, and tools for validating rendered manifests. Its inputs include a selected distro (for example, a Helm chart and the image it references), environment-specific values, and target-environment identity/access. The workload is the running application in that target environment, not another packaged distro artifact.
 
-These are not parallel artifact graphs. Product stages such as specs, sources, binaries, distros, and—if in scope—workloads describe outputs and validation across the app lifecycle. Each stage declares the toolchains needed to produce/validate its output and, where that output is independently executable, to run it. Do not assume the development app is itself the deployable runtime app, or that the build artifact includes either toolchain in full.
+These are not parallel artifact graphs. Product stages such as specs, sources, binaries, distros, and workloads describe outputs and validation across the app lifecycle. Each stage declares the toolchains needed to produce/validate its output and, where that output is independently executable, to run it. Do not assume the development app is itself the deployable runtime app, or that the build artifact includes either toolchain in full.
 
 An infrastructure-provisioning stage illustrates the same distinction without requiring a compiled application artifact:
 
