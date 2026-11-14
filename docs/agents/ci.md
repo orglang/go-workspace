@@ -33,6 +33,29 @@ Do not infer a strict linear dependency merely from this vocabulary. For example
 
 Generated sources should be treated consistently: either the relevant downstream workflow consumes the generated files already present in the exact source revision, or it explicitly owns generation as part of its own contract. Avoid hidden generation side effects and undocumented reliance on workflow execution order.
 
+### Gear and app streams
+
+Whether the artifact graph has separate `gear` and `app` streams is an explicit design decision; the labels must describe distinct deliverables, not merely duplicate the same pipeline under two names.
+
+Working recommendation:
+
+- Keep genuinely shared prerequisites and stages unprefixed (for example, `deps`), rather than duplicating them as `gear-deps` and `app-deps`.
+- Branch the graph into `gear` and `app` only at the first point where their inputs, outputs, validation contract, or release lifecycle differ.
+- Keep a stage shared when both streams consume the same artifact produced from the same pinned inputs. Do not create separate `gear` / `app` nodes solely to make the diagram look symmetrical.
+- If both streams have distinct artifacts at a stage, name those nodes explicitly (for example, `gear-binaries` and `app-binaries`). A downstream `distros` node may consume one or both streams; show the actual dependency rather than assuming every stage exists in both.
+
+The split should be accepted only after confirming that `gear` and `app` are independently meaningful build/release products with distinguishable inputs or outputs. If they are only deployment profiles or packaging variants of one application artifact, represent that distinction at the distribution/package layer instead of splitting the whole graph.
+
+For names, use the same scope vocabulary consistently across graph nodes, workflow filenames, workflow names, and job IDs:
+
+| Scope | Workflow filename pattern | Workflow name pattern | Job ID pattern |
+| --- | --- | --- | --- |
+| Shared | `<stage>.yaml` | `<Stage> <Action>` | `<stage>-<action>` |
+| Gear-specific | `gear-<stage>.yaml` | `Gear <Stage> <Action>` | `gear-<stage>-<action>` |
+| App-specific | `app-<stage>.yaml` | `App <Stage> <Action>` | `app-<stage>-<action>` |
+
+Do not prefix every workflow by default: shared checks keep shared names. Before adopting the split, map each proposed node to a concrete artifact, its exact inputs, and its consumer. Preserve caller-level required-check contexts during any naming migration.
+
 ## Tool responsibilities
 
 Keep toolchain installation distinct from project dependency installation:
