@@ -36,7 +36,7 @@ A useful working vocabulary (subject to validation against actual workflows) is:
 | `specs` | Compile TypeSpec and produce/check OpenAPI |
 | `sources` | Generate Go sources and verify reproducibility |
 | `binaries` | Run relevant tests and build executables from a component revision |
-| `distros` | Build and verify distributable images/stacks from pinned component inputs |
+| `distros` | Assemble and verify distribution artifacts from pinned app artifacts, run toolchains, and distribution configuration |
 
 Do not infer a strict linear dependency merely from this vocabulary. For example, dependency installation may be shared by multiple stages, and a downstream stage may consume committed generated sources rather than an artifact uploaded by an upstream workflow.
 
@@ -44,13 +44,13 @@ Generated sources should be treated consistently: either the relevant downstream
 
 ### Stage-specific dev and run toolchains
 
-The product is `app`, but that name identifies the product—not one identical application layout at every lifecycle stage. Its development form and runtime form may differ in composition, dependencies, configuration, and launch method:
+The product is `app`, but that name identifies the product—not one identical application layout at every lifecycle stage. Its development form and runtime form may differ in composition, dependencies, configuration, and launch method. A `distro` is the distribution artifact: it packages or references the runtime app together with the run toolchain and distribution-specific configuration. The runtime image is one possible form of a distro, not the run toolchain itself:
 
 - **Development app:** the form used by developers and CI, potentially including source trees, dev servers, hot-reload support, debuggers, test fixtures, and development-only dependencies.
 - **Build artifact:** the output produced from a selected source revision, such as a binary, package, or image. It need not contain the development environment.
 - **Runtime app:** the form actually executed or deployed, consisting of the selected build artifact plus its runtime configuration and run toolchain.
 
-Treat dev and run toolchains as stage-specific contracts, not as two global toolchains for the entire repository. For example, `sources` may need a dev toolchain containing Go and code generators, while its generated source files have no independent run toolchain. `binaries` may need a Go build toolchain and produce an executable whose run toolchain is an OS plus the shared libraries it uses. `distros` may assemble or reference that run toolchain as part of a distributable image.
+Treat dev and run toolchains as stage-specific contracts, not as two global toolchains for the entire repository. For example, `sources` may need a dev toolchain containing Go and code generators, while its generated source files have no independent run toolchain. `binaries` may need a Go build toolchain and produce an executable whose run toolchain is an OS plus the shared libraries it uses. `distros` assembles the distribution artifact by packaging or referencing the app artifact and its run toolchain; for example, a runtime image can contain both.
 
 These are not parallel artifact graphs. Product stages such as specs, sources, binaries, and distros describe outputs and validation across the app lifecycle. Each stage declares the toolchains needed to produce/validate its output and, where that output is independently executable, to run it. Do not assume the development app is itself the deployable runtime app, or that the build artifact includes either toolchain in full.
 
