@@ -38,7 +38,7 @@ A useful working vocabulary (subject to validation against actual workflows) is:
 | `sources` | Generate Go sources and verify reproducibility |
 | `binaries` | Run relevant tests and build executable files from a component revision |
 | `distros` | Assemble and verify distribution artifacts, such as runtime images and Helm charts, from pinned app artifacts, run toolchains, and distribution configuration |
-| `workloads` | Run and verify an application deployed from a selected distro in a target environment |
+| `workloads` | Run and verify the complete application, including its related components, in a target environment |
 
 Do not infer a strict linear dependency merely from this vocabulary. For example, dependency installation may be shared by multiple stages, and a downstream stage may consume committed generated sources rather than an artifact uploaded by an upstream workflow.
 
@@ -54,7 +54,7 @@ The product is `app`, but that name identifies the product—not one identical a
 
 Treat dev and run toolchains as stage-specific contracts, not as two global toolchains for the entire repository. For example, `sources` may need a dev toolchain containing Go and code generators, while its generated source files have no independent run toolchain. `binaries` may need a Go build toolchain and produce an executable whose run toolchain is an OS plus the shared libraries it uses. `distros` assembles distribution artifacts by packaging or referencing the app binary, its run toolchain, and distribution-specific configuration. A runtime image may bundle these together; a Helm chart may instead reference the image by immutable digest and carry deployment templates and defaults.
 
-The `workloads` stage's **dev toolchain** may include Helm, kubectl, cluster-authentication plugins, and tools for validating rendered manifests. Its inputs include a selected distro (for example, a Helm chart and the image it references), environment-specific values, and target-environment identity/access. The workload is the running application in that target environment, not another packaged distro artifact.
+The `workloads` stage's **dev toolchain** may include Helm, kubectl, cluster-authentication plugins, and tools for validating rendered manifests. Its inputs include a selected distro (for example, a Helm chart and the image it references), environment-specific values, and target-environment identity/access. The workload is the complete running application in that target environment, not another packaged distro artifact.
 
 These are not parallel artifact graphs. Product stages such as specs, sources, binaries, distros, and workloads describe outputs and validation across the app lifecycle. Each stage declares the toolchains needed to produce/validate its output and, where that output is independently executable, to run it. Do not assume the development app is itself the deployable runtime app, or that the build artifact includes either toolchain in full.
 
@@ -77,7 +77,7 @@ The following is an illustrative composition model, not a required directory lay
 - **Sources** can include application code, generated code, API/schema specifications, templates, static assets, and infrastructure or deployment definitions. These are source inputs regardless of whether they are written by hand or generated. For example, Helm chart source files (`Chart.yaml`, values files, templates, and chart dependency declarations) belong to `sources`; they are not themselves a packaged distro.
 - **Binaries** can include executable files and, where needed, shared libraries or other compiled runtime components. A binary artifact may be a single executable or a set of files; it is not synonymous with a container image.
 - **Distros** can combine or reference binary artifacts, run-toolchain components, and distribution-specific metadata/configuration. Possible components include runtime images, packaged Helm charts, manifests, checksums, and signatures. A chart package can refer to a runtime image by immutable digest without embedding that image. A distro need not contain every component physically; references must still resolve to pinned, reproducible inputs.
-- **Workloads** are applications running in a target environment. They are the result of deploying a selected distro, not another packaged artifact. Credentials and secret values remain external inputs; do not treat secret material as part of a distro.
+- **Workloads** represent the complete application as deployed in a target environment, including its related components that together make up the application. They are the result of deploying selected distros, not another packaged artifact. Credentials and secret values remain external inputs; do not treat secret material as part of a distro.
 
 For Helm specifically, chart source files flow through `sources`; validation and packaging use a dev toolchain that includes Helm; the packaged chart is a distribution artifact in `distros`; and Helm/kubectl can deploy that chart (and the image it references) as a workload. This illustrates that source, package, and deployment are different lifecycle roles even when they concern the same logical component.
 
