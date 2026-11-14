@@ -56,6 +56,15 @@ Treat dev and run toolchains as stage-specific contracts, not as two global tool
 
 These are not parallel artifact graphs. Product stages such as specs, sources, binaries, and distros describe outputs and validation across the app lifecycle. Each stage declares the toolchains needed to produce/validate its output and, where that output is independently executable, to run it. Do not assume the development app is itself the deployable runtime app, or that the build artifact includes either toolchain in full.
 
+An infrastructure-provisioning stage illustrates the same distinction without requiring a compiled application artifact:
+
+- Ansible playbooks and roles are the stage's source inputs (for example, under an infrastructure or provisioning stage).
+- The provisioning stage's **dev toolchain** contains the Ansible executable, its controller-side runtime, required collections, and any supporting CLI tools needed to validate and apply those sources.
+- The resulting **run toolchain** is the configured target runtime: its OS, installed packages, shared libraries, services, and other executable components required by the workload.
+- The playbook is not itself the target run toolchain. It is an input used by the provisioning stage to create or update that toolchain. Configuration values may be inputs to that operation without becoming toolchain components themselves.
+
+This example also shows that a stage's dev toolchain can execute an operation whose output is another stage's run toolchain; the two contracts describe different sides of the operation.
+
 ## Tool responsibilities
 
 Keep toolchain installation distinct from project dependency installation, while treating both as inputs to the relevant stage's dev or run toolchain:
