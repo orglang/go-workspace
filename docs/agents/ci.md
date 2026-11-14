@@ -7,12 +7,11 @@ This document captures design questions and candidate conventions for CI. The wo
 One candidate model to evaluate is:
 
 ```text
-             ┌─ specs → sources → binaries ─┐
-deps ────────┤                              ├→ distros
-             └─ ...                         ┘
+specs → sources → binaries ─┐
+other inputs ───────────────┴→ distros
 ```
 
-This is a proposal, not an agreed target architecture. Dependencies are declared per stage and per toolchain. Dependency management is a cross-cutting concern, not necessarily a stage in a strictly linear pipeline. The graph should describe real input/output dependencies, not prescribe a GitHub Actions workflow for every node.
+This is a proposal, not an agreed target architecture. The graph describes candidate product stages and their input/output relationships; it does not prescribe a GitHub Actions workflow for every node. Dependencies are declared per stage and per toolchain. Dependency management is cross-cutting and is not a product stage in this model.
 
 Use `toolchain` as the umbrella term for the software environment required to perform work or execute an output. Describe it relative to a stage and purpose:
 
@@ -27,14 +26,13 @@ Questions to resolve before adopting the model:
 
 - Which stages produce versioned artifacts, and which only prepare or validate inputs?
 - Does each stage consume a persisted output from its predecessor, or can it independently reproduce that output from a pinned revision?
-- Is `deps` a distinct node, or are each stage's dev/run toolchains and project dependencies prerequisites declared by that stage?
+- Are each stage's dev/run toolchains and project dependencies declared by that stage, with shared dependency-management operations composed where useful?
 - Which checks must run independently on PRs and merge-group candidates?
 
 A useful working vocabulary (subject to validation against actual workflows) is:
 
 | Candidate stage | Possible responsibility |
 | --- | --- |
-| `deps` | Broad dependency-management concern; manage the dev/run toolchains and stage-specific packages without assuming one artifact node |
 | `specs` | Compile TypeSpec and produce/check OpenAPI |
 | `sources` | Generate Go sources and verify reproducibility |
 | `binaries` | Run relevant tests and build executables from a component revision |
