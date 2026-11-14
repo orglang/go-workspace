@@ -12,7 +12,7 @@ deps ────────┤                              ├→ distros
              └─ ...                         ┘
 ```
 
-This is a proposal, not an agreed target architecture. Dependencies are a cross-cutting concern, not necessarily a stage in a strictly linear pipeline. The graph should describe real input/output dependencies, not prescribe a GitHub Actions workflow for every node.
+This is a proposal, not an agreed target architecture. Dependencies are declared per stage and per toolchain. Dependency management is a cross-cutting concern, not necessarily a stage in a strictly linear pipeline. The graph should describe real input/output dependencies, not prescribe a GitHub Actions workflow for every node.
 
 Use `toolchain` as the umbrella term for the software environment required to perform work or execute an output. Describe it relative to a stage and purpose:
 
