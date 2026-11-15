@@ -83,5 +83,4 @@ tasks:
             --no-color \
             database \
             schema
-          exit $status` 
-  }
+          exit $status
