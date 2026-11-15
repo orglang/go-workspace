@@ -83,6 +83,39 @@ For Helm specifically, chart source files flow through `sources`; validation and
 
 Do not force these compositions into strict trees. Artifacts may be shared by multiple consumers, and one artifact may reference another without containing it. Distinguish containment, reference, and dependency where it matters; qualify a dependency as build-time, deployment-time, or runtime only when the lifecycle distinction is relevant.
 
+## Selecting stage toolchains with mise environments
+
+Use mise configuration environments as the initial mechanism for selecting stage-specific toolchains. Keep shared tool versions and settings in `mise.toml`; declare additional tools in environment-specific files:
+
+```text
+mise.toml
+mise.specs-dev.toml
+mise.sources-dev.toml
+mise.binaries-dev.toml
+mise.distros-dev.toml
+mise.workloads-dev.toml
+mise.workloads-run.toml
+```
+
+Select an environment for a command with `-E` (or set `MISE_ENV`):
+
+```sh
+mise -E specs-dev install --locked
+mise -E binaries-dev run deps:install
+mise -E distros-dev run distros:build
+mise -E workloads-run exec -- ./app
+```
+
+The base `mise.toml` remains loaded; an environment file adds to or overrides that configuration. Multiple environments can be selected together when a task needs a combined toolchain, for example `mise -E distros-dev,workloads-run install --locked`. When values conflict, later selected environments take precedence. Environment names describe selectable toolchain sets, not additional product stages.
+
+Use `mise use --env <name> <tool>@<version>` to add a tool to the corresponding environment file. Do not use `-E` for this write operation: global `-E` selects which configuration files load, while the subcommand's `--env` selects the file to update.
+
+Keep lockfiles alongside the configurations that declare the tools: `mise.lock` for `mise.toml`, and `mise.<env>.lock` for `mise.<env>.toml`. Commit the shared environment lockfiles and use locked installs in CI. This keeps an environment's tool versions independently reviewable without making every CI job install every stage's tools.
+
+This is the initial convention, not a claim that every stage needs both `dev` and `run` environments. Add an environment only when it represents a useful, independently selectable toolchain. Revisit the layout if real workflows show that a different grouping or shared toolchain is simpler.
+
+See the mise documentation for [configuration environments](https://mise.jdx.dev/configuration/environments.html), [the `mise use` command](https://mise.jdx.dev/cli/use.html), and [lockfiles](https://mise.jdx.dev/dev-tools/mise-lock).
+
 ## Tool responsibilities
 
 Keep toolchain installation distinct from project dependency installation, while treating both as inputs to the relevant stage's dev or run toolchain:
