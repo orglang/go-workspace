@@ -32,8 +32,7 @@ tasks:
   binaries:build:
     desc: Test and build component binaries
     cmds:
-      - task: engine:binaries:test
-      - task: engine:binaries:build
+      - task: engine:binaries
 
   binaries:
     aliases: [bins]
