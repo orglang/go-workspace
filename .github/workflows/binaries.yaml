@@ -1,0 +1,73 @@
+name: binaries
+
+on:
+  workflow_call:
+    inputs:
+      engine_ref:
+        description: Exact go-engine revision under test
+        required: true
+        type: string
+      sdk_ref:
+        description: Exact go-sdk revision to test
+        required: true
+        type: string
+      run:
+        description: Whether to run the binaries checks
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  binaries:
+    if: ${{ inputs.run }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve workspace ref
+        id: workspace-ref
+        shell: bash
+        env:
+          BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          ref="main"
+          if [[ -n "$BRANCH_NAME" ]]; then
+            remote_ref="$(git ls-remote --heads https://github.com/orglang/go-workspace.git "refs/heads/$BRANCH_NAME")" || {
+              echo "::error::Unable to check whether go-workspace branch '$BRANCH_NAME' exists."
+              exit 1
+            }
+            if [[ -n "$remote_ref" ]]; then
+              ref="$BRANCH_NAME"
+            fi
+          fi
+
+          echo "Using orglang/go-workspace ref '$ref'."
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout workspace
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ steps.workspace-ref.outputs.ref }}
+          repository: orglang/go-workspace
+
+      - name: Checkout engine
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.engine_ref }}
+          repository: orglang/go-engine
+          path: engine
+
+      - name: Checkout SDK
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.sdk_ref }}
+          repository: orglang/go-sdk
+          path: sdk
+
+      - uses: ./.github/actions/setup-tools
+
+      - name: Run binaries checks
+        run: cd engine && GOWORK=off go tool -modfile=gear.mod task --dir .. binaries
