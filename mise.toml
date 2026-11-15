@@ -15,6 +15,7 @@ run = [
 
 [tasks."binaries:build"]
 description = "Test and build component binaries"
+# This operation is still a Taskfile task; mise monorepo addressing exposes only mise tasks.
 run = "mise -C engine exec -- task binaries"
 
 [tasks.binaries]
@@ -51,6 +52,7 @@ description = "Build specified stack if checks passed"
 usage = 'arg "<ops>" help="Stack operations profile" { choices "commons" }'
 run = [
   "mise run stand {{ usage.ops }}",
+  # E2E tests are still defined in the engine Taskfile, not in its mise config.
   "mise -C engine exec -- task tests:e2e",
   "echo stack were built",
 ]
