@@ -8,18 +8,6 @@ run = [
   "mise -E distros-run lock",
 ]
 
-[tasks."sources:generate"]
-description = "Generate specs and sources for all components"
-run = [
-  "mise -C engine exec -- task specs:generate",
-  "mise -C engine exec -- task sources:generate",
-]
-
-[tasks.sources]
-alias = "src"
-description = "Generate all sources"
-depends = ["sources:generate"]
-
 [tasks."binaries:build"]
 description = "Test and build component binaries"
 run = "mise -C engine exec -- task binaries"
@@ -39,18 +27,11 @@ depends = ["distros:build"]
 
 [tasks.stand]
 description = "Start specified stand"
+dir = "stack"
 usage = 'arg "<ops>" help="Stack operations profile" { choices "commons" }'
-run = '''
-set -e
-case "{{ usage.ops }}" in
-  commons) database=postgres ;;
-  *) echo "Unsupported stack profile: {{ usage.ops }}" >&2; exit 2 ;;
-esac
-
-cd stack
-set +e
+run = """
 docker compose \
-  --file "ops/${database}.compose.yaml" \
+  --file ops/postgres.compose.yaml \
   --file ops/engine.compose.yaml \
   --env-file "ops/{{ usage.ops }}/.env" \
   up \
@@ -58,17 +39,7 @@ docker compose \
   --pull missing \
   --quiet-pull \
   --detach
-status=$?
-docker compose \
-  --file "ops/${database}.compose.yaml" \
-  --file ops/engine.compose.yaml \
-  --env-file "ops/{{ usage.ops }}/.env" \
-  logs \
-  --no-color \
-  database \
-  schema
-exit "$status"
-'''
+"""
 
 [tasks.stack]
 description = "Build specified stack if checks passed"
