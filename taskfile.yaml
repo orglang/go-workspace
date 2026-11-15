@@ -14,43 +14,26 @@ vars:
       commons: postgres
 
 tasks:
-  sources:generate:
-    desc: Generate specs and sources for all components
-    cmds:
-      - task: engine:specs:generate
-      - task: engine:sources:generate
-
   sources:
     aliases: [src]
-    desc: Generate all sources
+    desc: Build all sources if checks passed
     cmds:
-      - task: sources:generate
+      - task: engine:sources:generate
       # TODO(#9): Re-enable SDK source linters after fixing the existing findings.
       # https://github.com/orglang/go-workspace/issues/9
       # - task: sdk:sources
 
-  binaries:build:
-    desc: Test and build component binaries
-    cmds:
-      - task: engine:binaries:test
-      - task: engine:binaries:build
-
   binaries:
     aliases: [bins]
-    desc: Test and build all binaries
+    desc: Build all binaries if checks passed
     cmds:
-      - task: binaries:build
-
-  distros:build:
-    desc: Build all distribution artifacts
-    cmds:
-      - task: sources:generate
-      - cmd: docker buildx bake
+      - task: engine:binaries
 
   distros:
     desc: Build all distros
     cmds:
-      - task: distros:build
+      - task: engine:sources:generate
+      - cmd: docker buildx bake
 
   stack:*:
     desc: Build specified stack if checks passed
