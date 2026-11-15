@@ -29,7 +29,7 @@ A **toolchain** is the software environment required to perform work or execute 
 
 A stage may have a dev toolchain, a run toolchain, both, or neither. They may overlap, but need not. Some dependencies may be statically linked and require no separate runtime installation. The dev/run distinction describes purpose, not physical location. Configuration that selects application behavior is an input, but is not necessarily part of a toolchain.
 
-The product is `app`; its development and runtime forms need not have the same composition. A **distro** is a distributable result that packages or references the runtime app, its run toolchain, and distribution-specific configuration. A runtime image is one possible distro form, not the run toolchain itself. A Helm chart is another: it can package templates and defaults while referencing a runtime image by immutable digest.
+A **distro** is a distributable form of the application that packages or references its runtime components, run toolchain, and distribution-specific configuration. A runtime image is one possible distro form, not the run toolchain itself. A Helm chart is another: it can package templates and defaults while referencing a runtime image by immutable digest.
 
 ### Artifact composition
 
@@ -75,16 +75,14 @@ Use `mise use --env <name> <tool>@<version>` to update an environment file. Keep
 
 ## Tool responsibilities
 
-- **mise** selects pinned development runtimes and CLI tools, such as Go, Node.js, Task, linters, and generators. It does not by itself define an application's deployed run toolchain.
-- **Go modules** are downloaded with `GOWORK=off go mod download` for component-local CI, so the workspace's `go.work` cannot hide module dependency problems.
-- **npm** installs TypeSpec packages from `tsp/package-lock.json` with `npm ci`. mise installs Node.js, not project npm packages.
-- **Run toolchains** are declared with the stage that owns the executable output or its distribution. They may include packaged components and external execution infrastructure. Docker Engine/BuildKit used to build an image belongs to the relevant dev toolchain; Docker Engine/containerd used to run it belongs to the run toolchain.
-- **mise tasks** manage development-toolchain and dependency lifecycle operations, such as `deps:lock`, `deps:install`, and `deps:check`.
-- **Task** runs and composes project operations, such as `specs:*`, `sources:*`, tests, binaries, and stack tasks.
+Use **mise** and **Task** as the two orchestration layers, with distinct responsibilities:
 
-Do not expose the same operation through both mise and Task. Run `deps:lock` deliberately; it mutates lockfiles. `deps:install` must be deterministic, and `deps:check` must detect stale manifests or lockfiles without modifying them.
+- **mise** selects and installs pinned development toolchains and manages their dependency lifecycle (`deps:lock`, `deps:install`, `deps:check`).
+- **Task** runs and composes project operations (`specs:*`, `sources:*`, tests, binaries, and stack tasks).
 
-For npm, prefer caching the download cache keyed by lockfile and Node/npm version. Do not cache `node_modules` without measured benefit. Avoid overlapping cache layers with mise; measure before adding another cache.
+Do not expose the same operation through both. Keep `deps:lock` deliberate and mutating; `deps:install` deterministic; and `deps:check` read-only.
+
+Cache downloaded dependencies and tool distributions where doing so improves CI performance. Key caches by the inputs that determine their contents, such as lockfiles and tool versions. Avoid caching installed dependency trees or duplicating caches across tools without measured benefit.
 
 ## Workflow ownership
 
