@@ -1,0 +1,9 @@
+[settings]
+lockfile = true
+
+[tasks."deps:lock"]
+description = "Update Docker toolchain lockfiles"
+run = [
+  "mise -E distros-dev lock",
+  "mise -E distros-run lock",
+]
