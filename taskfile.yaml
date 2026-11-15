@@ -43,7 +43,6 @@ tasks:
   distros:build:
     desc: Build all distribution artifacts
     cmds:
-      - task: sources:generate
       - cmd: docker buildx bake
 
   distros:
@@ -84,4 +83,5 @@ tasks:
             --no-color \
             database \
             schema
-          exit $status
+          exit $status` 
+  }
