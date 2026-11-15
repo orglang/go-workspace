@@ -1,91 +1,50 @@
 # CI and Verification
 
-This document captures design questions and candidate conventions for CI. The workspace and component repositories have independent Git histories; CI must preserve those boundaries and test explicit revisions.
+Component repositories own their Git histories and event-triggered CI. The workspace is a meta-repository; cross-repository checks must use explicit revisions rather than assume a shared checkout or merge-queue candidate.
 
-## Artifact and dependency model
+## Lifecycle stages
 
-One candidate model to evaluate is:
+Use this working lifecycle model:
 
 ```text
-specs → sources → binaries ─┐
-other inputs ───────────────┴→ distros → workloads
+specs → sources → binaries → distros → workloads
 ```
 
-This is a proposal, not an agreed target architecture. The graph describes candidate product stages and their input/output relationships; it does not prescribe a GitHub Actions workflow for every node. Dependencies are declared per stage and per toolchain. Dependency management is cross-cutting and is not a product stage in this model.
-
-Use `toolchain` as the umbrella term for the software environment required to perform work or execute an output. Describe it relative to a stage and purpose:
-
-- **Dev toolchain:** everything needed to develop, generate, validate, and build that stage's output. This can include an OS, system libraries, language runtimes and SDKs, compilers, generators, linters, CLI tools, and fetched project packages.
-- **Run toolchain:** the chain of tools and components needed to execute that stage's output. It can span multiple layers and locations: host OS and kernel capabilities, execution infrastructure such as Docker Engine or containerd, the container's userspace, interpreters, shared libraries, other executable components, and runtime packages. Components do not need to be packaged inside the output to belong to its run toolchain.
-
-A stage may define a dev toolchain, a run toolchain, both, or neither. Either toolchain may be managed as a separate, versioned artifact, or assembled from declared dependencies when needed. The dev and run toolchains may overlap, but need not be identical. Some dependencies may be statically linked into an output and therefore need not be installed separately in its run toolchain. Configuration that selects application behavior or deployment parameters is related, but is not itself necessarily part of the toolchain. The dev/run distinction describes purpose, not physical location: a toolchain can span host and container layers, and a component outside an artifact can still be part of the toolchain used to execute it.
-
-Use `deps` only as a broad label for dependency management or a task group, not as a claim that all dependencies form one graph node or one linear stage.
-
-Questions to resolve before adopting the model:
-
-- Which stages produce versioned artifacts, and which only prepare or validate inputs?
-- Does each stage consume a persisted output from its predecessor, or can it independently reproduce that output from a pinned revision?
-- Are each stage's dev/run toolchains and project dependencies declared by that stage, with shared dependency-management operations composed where useful?
-- What are the inputs, dev toolchain, run toolchain, and verification contract for `workloads`, which represents an application running in a target environment rather than another distributable artifact?
-- Which checks must run independently on PRs and merge-group candidates?
-
-A useful working vocabulary (subject to validation against actual workflows) is:
-
-| Candidate stage | Possible responsibility |
+| Stage | Responsibility |
 | --- | --- |
-| `specs` | Compile TypeSpec and produce/check OpenAPI |
-| `sources` | Generate Go sources and verify reproducibility |
-| `binaries` | Run relevant tests and build executable files from a component revision |
-| `distros` | Assemble and verify distribution artifacts, such as runtime images and Helm charts, from pinned app artifacts, run toolchains, and distribution configuration |
-| `workloads` | Run and verify the complete application, including its related components, in a target environment |
+| `specs` | Compile TypeSpec and produce or check OpenAPI |
+| `sources` | Generate source files and verify reproducibility |
+| `binaries` | Test and build executable artifacts from a component revision |
+| `distros` | Assemble and verify distribution artifacts, such as runtime images and Helm charts |
+| `workloads` | Run and verify the complete application, including related components, in a target environment |
 
-Do not infer a strict linear dependency merely from this vocabulary. For example, dependency installation may be shared by multiple stages, and a downstream stage may consume committed generated sources rather than an artifact uploaded by an upstream workflow.
+The arrows describe the expected lifecycle flow, not a requirement that every stage consume a persisted artifact from its immediate predecessor. A downstream stage may consume committed generated sources or reproduce them from a pinned revision. Make that choice explicit; avoid hidden generation side effects and undocumented reliance on workflow order.
 
-Generated sources should be treated consistently: either the relevant downstream workflow consumes the generated files already present in the exact source revision, or it explicitly owns generation as part of its own contract. Avoid hidden generation side effects and undocumented reliance on workflow execution order.
+### Toolchains
 
-### Stage-specific dev and run toolchains
+A **toolchain** is the software environment required to perform work or execute an output. Define it relative to a stage and purpose:
 
-The product is `app`, but that name identifies the product—not one identical application layout at every lifecycle stage. Its development form and runtime form may differ in composition, dependencies, configuration, and launch method. A `distro` is the distribution artifact: it packages or references the runtime app together with the run toolchain and distribution-specific configuration. A runtime image is one possible form of a distro, not the run toolchain itself. A Helm chart is another possible distro artifact: it can reference a pinned runtime image and describe how to deploy it without containing the image itself.
+- **Dev toolchain:** tools and dependencies needed to develop, generate, validate, or build a stage's output. It can include an OS, system libraries, runtimes, SDKs, compilers, generators, linters, CLI tools, and project packages.
+- **Run toolchain:** tools and components needed to execute the stage's output. It can span host and container layers, including OS and kernel capabilities, Docker Engine or containerd, container userspace, interpreters, shared libraries, and runtime packages. Components need not be packaged inside the output.
 
-- **Development app:** the form used by developers and CI, potentially including source trees, dev servers, hot-reload support, debuggers, test fixtures, and development-only dependencies.
-- **Build artifact:** the output produced from a selected source revision, such as an executable binary. It need not contain the development environment.
-- **Runtime app:** the form actually executed or deployed, consisting of the selected build artifact plus its runtime configuration and run toolchain.
+A stage may have a dev toolchain, a run toolchain, both, or neither. They may overlap, but need not. Some dependencies may be statically linked and require no separate runtime installation. The dev/run distinction describes purpose, not physical location. Configuration that selects application behavior is an input, but is not necessarily part of a toolchain.
 
-Treat dev and run toolchains as stage-specific contracts, not as two global toolchains for the entire repository. For example, `sources` may need a dev toolchain containing Go and code generators, while its generated source files have no independent run toolchain. `binaries` may need a Go build toolchain and produce an executable whose run toolchain is an OS plus the shared libraries it uses. `distros` assembles distribution artifacts by packaging or referencing the app binary, its run toolchain, and distribution-specific configuration. A runtime image may bundle these together; a Helm chart may instead reference the image by immutable digest and carry deployment templates and defaults.
-
-The `workloads` stage's **dev toolchain** may include Helm, kubectl, cluster-authentication plugins, and tools for validating rendered manifests. Its inputs include a selected distro (for example, a Helm chart and the image it references), environment-specific values, and target-environment identity/access. The workload is the complete running application in that target environment, not another packaged distro artifact.
-
-These are not parallel artifact graphs. Product stages such as specs, sources, binaries, distros, and workloads describe outputs and validation across the app lifecycle. Each stage declares the toolchains needed to produce/validate its output and, where that output is independently executable, to run it. Do not assume the development app is itself the deployable runtime app, or that the build artifact includes either toolchain in full.
-
-An infrastructure-provisioning stage illustrates the same distinction without requiring a compiled application artifact:
-
-- Ansible playbooks and roles are the stage's source inputs (for example, under an infrastructure or provisioning stage).
-- The provisioning stage's **dev toolchain** contains the Ansible executable, its controller-side runtime, required collections, and any supporting CLI tools needed to validate and apply those sources.
-- The resulting **run toolchain** is the configured target runtime: its OS, installed packages, shared libraries, services, and other executable components required by the workload.
-- The playbook is not itself the target run toolchain. It is an input used by the provisioning stage to create or update that toolchain. Configuration values may be inputs to that operation without becoming toolchain components themselves.
-
-This example also shows that a stage's dev toolchain can execute an operation whose output is another stage's run toolchain; the two contracts describe different sides of the operation.
-
+The product is `app`; its development and runtime forms need not have the same composition. A **distro** is a distributable result that packages or references the runtime app, its run toolchain, and distribution-specific configuration. A runtime image is one possible distro form, not the run toolchain itself. A Helm chart is another: it can package templates and defaults while referencing a runtime image by immutable digest.
 
 ### Artifact composition
 
-The lifecycle graph describes dependencies between stages. It does not describe the internal composition of each stage's artifacts. Keep these two views separate: an artifact produced by one stage can be composed of multiple parts, and an artifact can become an input to a later stage.
+The lifecycle stages describe relationships between outputs; they do not prescribe the internal layout of artifacts.
 
-The following is an illustrative composition model, not a required directory layout or a claim that every component has all these parts:
+- **Sources** include application code, generated code, API/schema specifications, templates, static assets, and infrastructure or deployment definitions. Helm chart source files belong here.
+- **Binaries** include executable files and, where needed, shared libraries or other compiled runtime components. A binary artifact may contain one file or several; it is not synonymous with a container image.
+- **Distros** may package or reference binaries, run-toolchain components, and distribution metadata/configuration. Examples include runtime images, packaged Helm charts, manifests, checksums, and signatures. References must resolve to pinned, reproducible inputs.
+- **Workloads** are the complete application running in a target environment, including its related components. They result from deploying selected distros; they are not another packaged artifact. Credentials and secret values remain external inputs.
 
-- **Sources** can include application code, generated code, API/schema specifications, templates, static assets, and infrastructure or deployment definitions. These are source inputs regardless of whether they are written by hand or generated. For example, Helm chart source files (`Chart.yaml`, values files, templates, and chart dependency declarations) belong to `sources`; they are not themselves a packaged distro.
-- **Binaries** can include executable files and, where needed, shared libraries or other compiled runtime components. A binary artifact may be a single executable or a set of files; it is not synonymous with a container image.
-- **Distros** can combine or reference binary artifacts, run-toolchain components, and distribution-specific metadata/configuration. Possible components include runtime images, packaged Helm charts, manifests, checksums, and signatures. A chart package can refer to a runtime image by immutable digest without embedding that image. A distro need not contain every component physically; references must still resolve to pinned, reproducible inputs.
-- **Workloads** represent the complete application as deployed in a target environment, including its related components that together make up the application. They are the result of deploying selected distros, not another packaged artifact. Credentials and secret values remain external inputs; do not treat secret material as part of a distro.
+For Helm, chart sources flow through `sources`; Helm validates and packages them as part of `distros`; Helm/kubectl deploy the chart and its referenced image as a `workload`. Do not force artifact composition into a strict tree: artifacts can be shared, contained, referenced, or depended on. Qualify dependencies as build-time, deployment-time, or runtime only when that distinction matters.
 
-For Helm specifically, chart source files flow through `sources`; validation and packaging use a dev toolchain that includes Helm; the packaged chart is a distribution artifact in `distros`; and Helm/kubectl can deploy that chart (and the image it references) as a workload. This illustrates that source, package, and deployment are different lifecycle roles even when they concern the same logical component.
+## Selecting toolchains with mise
 
-Do not force these compositions into strict trees. Artifacts may be shared by multiple consumers, and one artifact may reference another without containing it. Distinguish containment, reference, and dependency where it matters; qualify a dependency as build-time, deployment-time, or runtime only when the lifecycle distinction is relevant.
-
-## Selecting stage toolchains with mise environments
-
-Use mise configuration environments as the initial mechanism for selecting stage-specific toolchains. Keep shared tool versions and settings in `mise.toml`; declare additional tools in environment-specific files:
+Use mise configuration environments for stage-specific toolchains. Keep shared tools and settings in `mise.toml`; put stage-specific tools in environment files, for example:
 
 ```text
 mise.toml
@@ -97,85 +56,62 @@ mise.workloads-dev.toml
 mise.workloads-run.toml
 ```
 
-Select an environment for a command with `-E` (or set `MISE_ENV`):
+Use `-E` or `MISE_ENV` to select environments. The base `mise.toml` is always loaded; selected environment files add to or override it. Multiple environments can be combined. Add a `dev` or `run` environment only when it represents a useful, independently selectable toolchain.
 
-```sh
-mise -E specs-dev install --locked
-mise -E binaries-dev run deps:install
-mise -E distros-dev run distros:build
-mise -E workloads-run exec -- ./app
+Use `env_sets` in `miserc.toml` to give a frequently used stage combination a short name. For example:
+
+```toml
+[env_sets]
+specs = ["specs-dev"]
+sources = ["sources-dev"]
+binaries = ["binaries-dev"]
+distros = ["distros-dev"]
+workloads = ["workloads-dev", "workloads-run"]
 ```
 
-The base `mise.toml` remains loaded; an environment file adds to or overrides that configuration. Multiple environments can be selected together when a task needs a combined toolchain, for example `mise -E distros-dev,workloads-run install --locked`. When values conflict, later selected environments take precedence. Environment names describe selectable toolchain sets, not additional product stages.
+Then select a stage with `mise -E binaries`. Sets are aliases for lists of environments, not separate configuration layers; expansion is one level only. Keep a set only when it makes a real workflow or local command simpler.
 
-Use `mise use --env <name> <tool>@<version>` to add a tool to the corresponding environment file. Do not use `-E` for this write operation: global `-E` selects which configuration files load, while the subcommand's `--env` selects the file to update.
-
-Keep lockfiles alongside the configurations that declare the tools: `mise.lock` for `mise.toml`, and `mise.<env>.lock` for `mise.<env>.toml`. Commit the shared environment lockfiles and use locked installs in CI. This keeps an environment's tool versions independently reviewable without making every CI job install every stage's tools.
-
-This is the initial convention, not a claim that every stage needs both `dev` and `run` environments. Add an environment only when it represents a useful, independently selectable toolchain. Revisit the layout if real workflows show that a different grouping or shared toolchain is simpler.
-
-See the mise documentation for [configuration environments](https://mise.jdx.dev/configuration/environments.html), [the `mise use` command](https://mise.jdx.dev/cli/use.html), and [lockfiles](https://mise.jdx.dev/dev-tools/mise-lock).
+Use `mise use --env <name> <tool>@<version>` to update an environment file. Keep lockfiles alongside their configurations (`mise.lock` and `mise.<env>.lock`), commit them, and use locked installs in CI.
 
 ## Tool responsibilities
 
-Keep toolchain installation distinct from project dependency installation, while treating both as inputs to the relevant stage's dev or run toolchain:
+- **mise** selects pinned development runtimes and CLI tools, such as Go, Node.js, Task, linters, and generators. It does not by itself define an application's deployed run toolchain.
+- **Go modules** are downloaded with `GOWORK=off go mod download` for component-local CI, so the workspace's `go.work` cannot hide module dependency problems.
+- **npm** installs TypeSpec packages from `tsp/package-lock.json` with `npm ci`. mise installs Node.js, not project npm packages.
+- **Run toolchains** are declared with the stage that owns the executable output or its distribution. They may include packaged components and external execution infrastructure. Docker Engine/BuildKit used to build an image belongs to the relevant dev toolchain; Docker Engine/containerd used to run it belongs to the run toolchain.
+- **mise tasks** manage development-toolchain and dependency lifecycle operations, such as `deps:lock`, `deps:install`, and `deps:check`.
+- **Task** runs and composes project operations, such as `specs:*`, `sources:*`, tests, binaries, and stack tasks.
 
-- **mise** selects pinned development toolchain runtimes and CLI tools from `mise.toml` / `mise.lock` (for example Go, Node.js, Task, linters, and generators). It does not, by itself, define the run toolchain for a deployed app.
-- **Go modules** are downloaded with `GOWORK=off go mod download` for component-local CI. Do not let the workspace's local `go.work` hide module dependency problems.
-- **npm** installs TypeSpec packages from `tsp/package-lock.json` with `npm ci`. mise installs Node.js; it does not install project npm packages.
-- **Run toolchains** should be declared and assembled with the stage that owns the executable output or its distribution. They may include both components packaged in the output (for example base-image userspace, OS packages, shared libraries, and runtime services) and external execution infrastructure (for example the host OS, kernel capabilities, Docker Engine, containerd, or a Kubernetes node's container runtime). Whether a component is inside or outside an image does not by itself determine whether it belongs to the run toolchain; its role in executing the selected output does. Docker Engine or BuildKit used to build an image belongs to the relevant dev toolchain; Docker Engine or containerd used to run the resulting workload belongs to its run toolchain.
-- **mise tasks** own development-toolchain and dependency lifecycle operations such as `deps:lock`, `deps:install`, and `deps:check`, where those commands actually manage the corresponding stage inputs.
-- **Task** owns project operations and their composition: `specs:*`, `sources:*`, tests, binaries, and stack tasks.
+Do not expose the same operation through both mise and Task. Run `deps:lock` deliberately; it mutates lockfiles. `deps:install` must be deterministic, and `deps:check` must detect stale manifests or lockfiles without modifying them.
 
-Do not add a second entry point for the same operation. If a command is a toolchain/dependency lifecycle operation, expose it through mise; if it is a project operation or composes project tasks, expose it through Task.
-
-`deps:lock` is mutating and should be run deliberately (locally or in an explicitly invoked generation/update workflow), not as an incidental side effect of ordinary verification. `deps:install` is the deterministic install operation. `deps:check` must fail when manifests or lockfiles are stale; keep its observable result read-only from the caller's perspective.
-
-For npm caching, prefer caching the npm download cache keyed by the lockfile and Node/npm version. Do not cache `node_modules` unless measurements show a material benefit and the cache can be invalidated safely. Avoid overlapping cache layers with mise-action; measure before adding another cache.
+For npm, prefer caching the download cache keyed by lockfile and Node/npm version. Do not cache `node_modules` without measured benefit. Avoid overlapping cache layers with mise; measure before adding another cache.
 
 ## Workflow ownership
 
-GitHub events are delivered to the repository that owns the workflow file. Therefore component repositories own event-triggered workflows and their stable check contexts.
+GitHub delivers events to the repository that owns the workflow file. Component repositories therefore own event-triggered workflows and their stable check contexts.
 
-The workspace is a meta-repository containing `go.work` and workspace-level documentation. Whether it should also own reusable workflow implementations is an open design decision; decide this from actual cross-repository reuse and orchestration needs.
+- **Component repositories** own event adapters (`pull_request`, `merge_group`, `push`, `workflow_dispatch`), required check names, and component-specific commands.
+- **Workspace** owns workspace membership and cross-repository coordination. Whether it should also own reusable workflow implementations remains open.
+- **Reusable workflows** are an option, not a default. Decide their boundary based on actual reuse, caller complexity, orchestration, revision handling, and required-check stability.
 
-Target ownership:
-
-- **Component repository:** event adapters (`pull_request`, `merge_group`, `push`, `workflow_dispatch`), required check names, and component-specific commands.
-- **Workspace repository:** workspace membership and cross-repository coordination. Whether it should also own shared workflow logic remains an open design question.
-- **Reusable workflows:** one option, not a predetermined answer. Compare duplication, caller complexity, cross-repository orchestration, revision handling, and required-check stability before deciding which stages (if any) should be reusable.
-
-The partial move to local `Binaries` and `Distros` workflows in `go-engine` is consistent with component ownership, but does not by itself settle whether some internal steps should later be shared. Avoid both blanket duplication and premature centralization.
+Local `Binaries` and `Distros` workflows in `go-engine` are consistent with component ownership; they do not rule out sharing selected internal steps. Avoid blanket duplication and premature centralization.
 
 ## Exact revisions for PR and merge queue
 
-This section is independent of the product graph. It describes what a repository's own merge queue can and cannot guarantee.
+A `merge_group` event provides a synthetic ref and SHA for the candidate in the repository whose queue raised the event. It does not automatically provide matching candidate SHAs for other repositories.
 
-For a `merge_group` run, GitHub provides a synthetic merge-group ref and SHA for the candidate in the repository whose queue raised the event. Checking out the event's default ref/SHA tests that candidate (including the queued PR changes and the target branch state represented by the merge group). GitHub's merge-group event does **not** automatically provide matching candidate SHAs for other repositories.
+- Test same-repository code and configuration at the merge-group SHA.
+- Select cross-repository inputs using immutable revisions pinned by the candidate (for example, in a compatibility manifest), or another explicit coordination mechanism.
+- Do not claim to test a simultaneous candidate from another repository unless its revision is explicitly supplied and verified. Do not silently check out `main`.
+- For `pull_request`, state whether the check tests the PR merge ref or PR head.
 
-Therefore:
+Required merge-queue checks must include `merge_group`. Use least-privilege permissions (normally `contents: read`); grant write access only to narrowly scoped generation workflows that need it. Never pass long-lived credentials as workflow inputs.
 
-- For same-repository code and configuration, test the merge-group candidate SHA.
-- For cross-repository inputs, use immutable revisions explicitly pinned by the candidate under test (for example in a checked-in compatibility manifest), or another deliberately designed coordination mechanism.
-- Do not claim that a component merge queue tests a simultaneous candidate from the workspace or another component unless such a candidate mapping is explicitly supplied and verified.
-- If cross-repository compatibility cannot be represented reproducibly, state that limitation and choose a separate integration strategy; do not silently check out `main`.
+## Naming tasks, workflows, and jobs
 
-For `pull_request`, be explicit whether the check tests GitHub's PR merge ref or the PR head. For required merge-queue checks, include the `merge_group` trigger and test the merge-group SHA. Keep permissions least-privilege (normally `contents: read`); grant write access only to a narrowly scoped generation workflow that needs to commit generated files. Never pass long-lived credentials as workflow inputs.
+Keep stage, operation, and toolchain purpose separate. Name project tasks as `stage:action`:
 
-## Naming tasks, workflows, jobs, and required checks
-
-Keep four concerns separate:
-
-- **Stage** identifies which part of the app lifecycle an operation belongs to: `specs`, `sources`, `binaries`, `distros`, or `workloads`.
-- **Task** names the project operation as `stage:action`, for example `sources:generate` or `distros:build`.
-- **Workflow** defines the CI event boundary and stable check context for a stage or a deliberate stage operation.
-- **Job** names a concrete operation or verification within that workflow.
-
-Do not encode `dev` or `run` in every task, workflow, or job name. These identify the purpose of a toolchain, not another lifecycle stage. A CI job prepares the stage's dev toolchain and then invokes the relevant Task operation. A run toolchain belongs to the executable output or distro being produced/consumed; it is not the environment used to run the CI job. Do not create separate workflows solely because a stage has both dev and run toolchains.
-
-Candidate Task names:
-
-| Stage | Task names |
+| Stage | Candidate tasks |
 | --- | --- |
 | `specs` | `specs:check`, `specs:generate` |
 | `sources` | `sources:generate`, `sources:verify` |
@@ -183,9 +119,9 @@ Candidate Task names:
 | `distros` | `distros:build`, `distros:verify` |
 | `workloads` | `workloads:deploy`, `workloads:verify` |
 
-Candidate workflow and job names:
+Use stage-oriented workflow names and stable job IDs:
 
-| Stage | Workflow filename | Workflow name | Job IDs |
+| Stage | Workflow file | Workflow name | Job IDs |
 | --- | --- | --- | --- |
 | `specs` | `specs.yaml` | `Specs` | `specs-check` |
 | `sources` | `sources.yaml` | `Sources` | `sources-generate`, `sources-verify` |
@@ -193,54 +129,24 @@ Candidate workflow and job names:
 | `distros` | `distros.yaml` | `Distros` | `distros-build`, `distros-verify` |
 | `workloads` | `workloads.yaml` | `Workloads` | `workloads-deploy`, `workloads-verify` |
 
-For example, the `workloads:deploy` task may run in a job whose dev toolchain includes Helm and kubectl, while the selected distro supplies the app's run toolchain. Similarly, the `distros:build` task may use Docker Engine or BuildKit from its dev toolchain to assemble a runtime image; neither tool becomes part of that image's run toolchain.
+A CI job prepares the stage's dev toolchain before invoking Task. Do not encode `dev` or `run` in every task or job name; these describe toolchain purpose, not lifecycle stages. Do not create separate workflows solely because a stage has both toolchains.
 
-These names are a proposed convention, not a mandate to rename current files, tasks, or checks immediately. The existing workflow/check mapping below records the current naming shape to account for during migration.
+These are candidate conventions, not an instruction to rename existing checks immediately. Required checks may be tied to workflow/job contexts. Before renaming, inspect branch protection and rulesets, migrate the required contexts, and verify the merge queue. Keep caller-level check contexts stable when moving implementation behind a reusable workflow. Prefer stable, unambiguous displayed names; avoid dynamic matrix names for required checks.
 
-Use lowercase kebab-case workflow filenames, stage-oriented workflow names, and stable job IDs:
+## Triggers and path filters
 
-| Current operation | Workflow filename | Workflow name | Job ID |
-| --- | --- | --- | --- |
-| Sources generation | `sources-generate.yaml` | `Sources Generate` | `sources-generate` |
-| Sources verification | `sources-verify.yaml` | `Sources Verify` | `sources-verify` |
-| Specs verification | `specs-check.yaml` | `Specs Check` | `specs-check` |
-| Binary verification/build | `binaries.yaml` | `Binaries` | `binaries` |
-| Distribution verification | `distros.yaml` | `Distros` | `distros` |
+- Use `pull_request` for proposed changes; deliberately include required activity types such as `opened`, `ready_for_review`, and `synchronize`.
+- Decide which fast checks run for draft PRs. Required caller-level checks must still report a deterministic result.
+- Use `merge_group` for required merge-queue gates and test its candidate SHA.
+- Use `push` for default-branch validation and useful cache warming.
+- Use `workflow_dispatch` for deliberate maintenance, generation, and diagnostics.
 
-This is a vocabulary proposal, not permission to rename existing checks blindly. GitHub required checks can be tied to workflow/job contexts. Before any rename, inspect branch protection and repository rulesets, record the old and new contexts, migrate the rules, and verify the merge queue before removing the old context. Keep a caller-level job/check stable when moving its implementation behind a reusable workflow.
+Do not put path filters on required workflows if they can prevent GitHub from creating a required check. Keep the caller-level check present and let an internal job skip according to an explicit path policy. Changes to workflow definitions, mise/Task configuration, lockfiles, shared stack files, and workspace coordination must trigger affected checks. Test PR, draft/ready, and merge-group behavior, including changes that match no stage-specific paths, before introducing path-based skips.
 
-Prefer workflow `name` and job `name` values that are stable and unambiguous. Job IDs are machine-facing identifiers; displayed names are human-facing. Do not use matrix-generated or dynamically changing names for required checks.
+## Decisions still open
 
-## Triggers, drafts, and path filters
-
-Choose triggers by purpose:
-
-- `pull_request`: validation of proposed changes; include the required PR activity types (`opened`, `ready_for_review`, and `synchronize`) deliberately.
-- Draft PRs: decide explicitly which fast checks run while a PR is draft. Do not accidentally make a required check disappear; a stable caller-level check must still report a deterministic result.
-- `merge_group`: required merge-queue gates must run against the merge-group candidate.
-- `push`: default-branch validation and cache warming where useful.
-- `workflow_dispatch`: deliberate maintenance/generation operations and diagnostics.
-
-Do not put path filters on a required workflow in a way that prevents GitHub from creating its required check. If a stage is irrelevant to a change, keep the caller-level check present and let an internal job decide to skip based on a reviewed path policy. Changes to workflow definitions, mise/Task configuration, lockfiles, shared stack files, and workspace coordination must trigger every affected check.
-
-Before introducing path-based skips, test PR, draft/ready, and merge-group behavior, including no-relevant-path changes. A skipped internal job must not leave the merge queue waiting for a missing required context.
-
-## Implementation sequence
-
-1. Evaluate the candidate artifact/dependency model, defining stage-specific dev and run toolchains and keeping the graph explicitly provisional until agreed.
-2. Decide workflow ownership and the reusable-workflow boundary without treating either full centralization or full decentralization as a default.
-3. Define the revision contract for PR and merge-group runs, including how compatible cross-repository inputs are selected.
-4. Agree on workflow/job/check naming and inspect required-check configuration before changing any check context.
-5. Decide how `Distros` consumes generated sources and whether source validation is independently guaranteed for merge-group candidates.
-6. Define triggers and safe path-filter behavior for each required check before adding filters.
-7. Evaluate npm download caching against the existing mise cache; add it only if it gives a measurable benefit.
-8. Implement accepted decisions in small PRs, preserving existing merge gates.
-
-## Verification after a PR update
-
-After updating a PR:
-
-1. Inspect the actual checks/status.
-2. Investigate failures rather than rerunning blindly.
-3. Distinguish skipped, unavailable, running, and successful checks.
-4. Do not claim verification is complete until the relevant checks are green.
+- Which stages publish versioned artifacts, and which only validate or prepare inputs?
+- Where should reusable workflow logic live, if it is shared?
+- How should cross-repository revisions be coordinated for integration checks and merge queues?
+- Which exact checks and path policies are required for each repository?
+- What are the concrete inputs and verification contract for running the complete workload in a target environment?
