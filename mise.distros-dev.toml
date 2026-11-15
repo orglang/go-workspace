@@ -1,5 +1,5 @@
 [tools]
-"aqua:docker/cli" = "29.9.3"
+docker-cli = "29.9.3"
 
 [tools."aqua:docker/buildx"]
 version = "0.39.0"
