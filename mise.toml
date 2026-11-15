@@ -1,0 +1,58 @@
+monorepo_root = true
+
+[monorepo]
+config_roots = ["engine"]
+
+[settings]
+lockfile = true
+
+[tasks."deps:lock"]
+description = "Update Docker toolchain lockfiles"
+run = [
+  "mise -E distros-dev lock",
+  "mise -E distros-run lock",
+]
+
+[tasks."binaries:build"]
+description = "Test and build component binaries"
+# This operation is still a Taskfile task; mise monorepo addressing exposes only mise tasks.
+run = "mise -C engine exec -- task binaries"
+
+[tasks.binaries]
+alias = "bins"
+description = "Test and build all binaries"
+depends = ["binaries:build"]
+
+[tasks."distros:build"]
+description = "Build all distribution artifacts"
+run = "docker buildx bake"
+
+[tasks.distros]
+description = "Build all distros"
+depends = ["distros:build"]
+
+[tasks.stand]
+description = "Start specified stand"
+dir = "stack"
+usage = 'arg "<ops>" help="Stack operations profile" { choices "commons" }'
+run = """
+docker compose \
+  --file ops/postgres.compose.yaml \
+  --file ops/engine.compose.yaml \
+  --env-file "ops/{{ usage.ops }}/.env" \
+  up \
+  --remove-orphans \
+  --pull missing \
+  --quiet-pull \
+  --detach
+"""
+
+[tasks.stack]
+description = "Build specified stack if checks passed"
+usage = 'arg "<ops>" help="Stack operations profile" { choices "commons" }'
+run = [
+  "mise run stand {{ usage.ops }}",
+  # E2E tests are still defined in the engine Taskfile, not in its mise config.
+  "mise -C engine exec -- task tests:e2e",
+  "echo stack were built",
+]
