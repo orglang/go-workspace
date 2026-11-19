@@ -80,6 +80,7 @@ sources = [
   "**/compose.yml",
   "**/*.compose.yaml",
   "**/*.compose.yml",
+  "../stack/**",
 ]
 outputs = []
 run = [
