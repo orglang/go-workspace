@@ -62,25 +62,23 @@ run = [
 [tasks."distros:gate"]
 description = "Run engine Binaries and workspace Distros checks"
 depends = ["//engine:binaries:gate"]
+dir = "engine"
 sources = [
-  "engine/Dockerfile",
-  "engine/Dockerfile.*",
-  "engine/**/Dockerfile",
-  "engine/**/Dockerfile.*",
-  "engine/*.Dockerfile",
-  "engine/**/*.Dockerfile",
-  "engine/.dockerignore",
-  "engine/compose.yaml",
-  "engine/compose.yml",
-  "engine/*.compose.yaml",
-  "engine/*.compose.yml",
-  "engine/**/compose.yaml",
-  "engine/**/compose.yml",
-  "engine/**/*.compose.yaml",
-  "engine/**/*.compose.yml",
-  "stack/**",
-  "mise.distros-*.toml",
-  "mise.distros-*.lock",
+  "Dockerfile",
+  "Dockerfile.*",
+  "**/Dockerfile",
+  "**/Dockerfile.*",
+  "*.Dockerfile",
+  "**/*.Dockerfile",
+  ".dockerignore",
+  "compose.yaml",
+  "compose.yml",
+  "*.compose.yaml",
+  "*.compose.yml",
+  "**/compose.yaml",
+  "**/compose.yml",
+  "**/*.compose.yaml",
+  "**/*.compose.yml",
 ]
 outputs = []
 run = [
