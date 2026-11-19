@@ -5,6 +5,7 @@ config_roots = ["engine"]
 
 [settings]
 lockfile = true
+experimental = true
 
 [tasks."deps:lock"]
 description = "Update Docker toolchain lockfiles"
