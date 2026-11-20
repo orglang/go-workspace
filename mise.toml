@@ -5,6 +5,7 @@ config_roots = ["engine"]
 
 [settings]
 lockfile = true
+experimental = true
 
 [tasks."deps:lock"]
 description = "Update Docker toolchain lockfiles"
@@ -25,6 +26,7 @@ depends = ["binaries:build"]
 
 [tasks."distros:build"]
 description = "Build all distribution artifacts"
+tools = { docker-cli = "29.9.3", "aqua:docker/buildx" = "0.39.0" }
 run = "docker buildx bake"
 
 [tasks.distros]
@@ -33,6 +35,7 @@ depends = ["distros:build"]
 
 [tasks.stand]
 description = "Start specified stand"
+tools = { docker-cli = "29.9.3", docker-compose = "5.7.1" }
 dir = "stack"
 usage = 'arg "<ops>" help="Stack operations profile" { choices "commons" }'
 run = """
@@ -55,4 +58,32 @@ run = [
   # E2E tests are still defined in the engine Taskfile, not in its mise config.
   "mise -C engine exec -- task tests:e2e",
   "echo stack were built",
+]
+
+[tasks."distros:gate"]
+description = "Run engine Binaries and workspace Distros checks"
+depends = ["//engine:binaries:gate"]
+dir = "engine"
+sources = [
+  "Dockerfile",
+  "Dockerfile.*",
+  "**/Dockerfile",
+  "**/Dockerfile.*",
+  "*.Dockerfile",
+  "**/*.Dockerfile",
+  ".dockerignore",
+  "compose.yaml",
+  "compose.yml",
+  "*.compose.yaml",
+  "*.compose.yml",
+  "**/compose.yaml",
+  "**/compose.yml",
+  "**/*.compose.yaml",
+  "**/*.compose.yml",
+  "../stack/**",
+]
+outputs = []
+run = [
+  { task = ":distros" },
+  { task = ":stack", args = ["commons"] },
 ]
