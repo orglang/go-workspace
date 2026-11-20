@@ -24,6 +24,21 @@ Everything toolkit-specific is in `adapter/`, including `di_fx.go` (ADR 0003)
 and the generated conversions, which are wire concerns (ADR 0005). Everything
 in `core/` is reachable without pgx, echo, sqlbuilder, fx, or the SDK.
 
+## Dead code during migration
+
+The split is a structural move, not a reason to preserve every declaration from
+the source package. Carry forward only code that has a real caller in the
+destination architecture. Before copying a helper, search for its call sites;
+remove unreferenced private helpers and their imports instead of propagating
+them into each migrated aggregate. Keep live helpers and their callers intact.
+
+The repository currently disables golangci-lint's `unused` analyzer because
+Fx constructors and handlers can be discovered through reflection. Revive does
+not provide a rule that reliably detects every unreferenced private function.
+Until the project has a sound unused-code check that accounts for those
+reflection entry points, a repository-wide call-site audit is part of each
+aggregate split; do not claim the revive configuration enforces this policy.
+
 ## Order of work
 
 Three steps, green after each. Green in the middle matters: it is what makes the
