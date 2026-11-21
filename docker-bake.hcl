@@ -1,3 +1,11 @@
+variable "ENGINE_SOURCE_SHA" {
+  default = "local"
+}
+
+variable "ENGINE_BINARY_SHA" {
+  default = "unknown"
+}
+
 group "default" {
   targets = ["engine", "postgres"]
 }
