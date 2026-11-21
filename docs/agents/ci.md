@@ -30,8 +30,8 @@ prepare → check1 → install → check2 → [publish]
 
 For sources, the full lifecycle applies to local development and source-artifact creation. CI does not run the source `prepare`, `install`, or `publish` steps; it runs only `check1` and `check2` against the revision under test.
 
-- `sources.check1` is the fast artifact-consistency gate: verify that required generated sources and lockfiles are present and up to date. It must not be treated as the full source quality suite.
-- `sources.check2` is the full source verification: run formatting, lint, and the remaining source checks against a clean checkout of the exact revision. In local development, this is the commit created by `sources.install`; in CI, it is the checked-out revision under test.
+- `sources.check1` runs formatting checks and linting. It is the fast source-quality gate.
+- `sources.check2` runs static analysis and architecture analysis against a clean checkout of the exact revision. In local development, this is the commit created by `sources.install`; in CI, it is the checked-out revision under test.
 
 For binaries, `check1` runs unit tests and `check2` runs integration tests. Each CI check must verify the artifact or revision assigned to its stage and must not silently substitute a rebuilt output.
 
