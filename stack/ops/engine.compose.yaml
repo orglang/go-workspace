@@ -12,7 +12,7 @@ configs:
 
 services:
   engine:
-    image: orglang/go-engine:latest
+    image: ${ENGINE_IMAGE:-orglang/go-engine:latest}
     networks:
       - orglang
     depends_on:
@@ -25,4 +25,3 @@ services:
         target: /orglang/application.yaml
     labels:
       image.key: orglang/go-engine
- 
