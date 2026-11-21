@@ -18,7 +18,7 @@ specs → sources → binaries → distros → workloads
 | `distros` | Assemble and verify distribution artifacts, such as runtime images and Helm charts |
 | `workloads` | Run and verify the complete application, including related components, in a target environment |
 
-The arrows describe the expected lifecycle flow, not a requirement that every stage consume a persisted artifact from its immediate predecessor. A downstream stage may consume committed generated sources or reproduce them from a pinned revision. Make that choice explicit; avoid hidden generation side effects and undocumented reliance on workflow order.
+The arrows describe the expected lifecycle flow; each stage must declare its actual inputs rather than rely on hidden generation side effects or workflow order. In particular, the `binaries → distros` edge is an explicit artifact dependency: a distro must package or reference the immutable binary artifact produced by the binaries stage, with its artifact identity/digest and source revision. It must not silently rebuild the application from a checkout. Other stage transitions may consume committed generated sources or reproduce them from a pinned revision when that is explicitly documented.
 
 ### Toolchains
 
@@ -37,7 +37,7 @@ The lifecycle stages describe relationships between outputs; they do not prescri
 
 - **Sources** include application code, generated code, API/schema specifications, templates, static assets, and infrastructure or deployment definitions. Helm chart source files belong here.
 - **Binaries** include executable files and, where needed, shared libraries or other compiled runtime components. A binary artifact may contain one file or several; it is not synonymous with a container image.
-- **Distros** may package or reference binaries, run-toolchain components, and distribution metadata/configuration. Examples include runtime images, packaged Helm charts, manifests, checksums, and signatures. References must resolve to pinned, reproducible inputs.
+- **Distros** package or reference the immutable binary output from `binaries`, together with run-toolchain components and distribution metadata/configuration. They do not compile the application again. Examples include runtime images, packaged Helm charts, manifests, checksums, and signatures. Binary and other external references must resolve to pinned, reproducible inputs; preserve the binary artifact identity/digest and source revision in distro provenance.
 - **Workloads** are the complete application running in a target environment, including its related components. They result from deploying selected distros; they are not another packaged artifact. Credentials and secret values remain external inputs.
 
 For Helm, chart sources flow through `sources`; Helm validates and packages them as part of `distros`; Helm/kubectl deploy the chart and its referenced image as a `workload`. Do not force artifact composition into a strict tree: artifacts can be shared, contained, referenced, or depended on. Qualify dependencies as build-time, deployment-time, or runtime only when that distinction matters.
