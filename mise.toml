@@ -34,7 +34,7 @@ binary_sha="$(sha256sum engine/dist/go-engine | cut -d' ' -f1)"
 ENGINE_SOURCE_SHA="$source_sha" ENGINE_BINARY_SHA="$binary_sha" docker buildx bake
 image="orglang/go-engine:$source_sha"
 image_id="$(docker image inspect "$image" | python3 -c 'import json,sys; print(json.load(sys.stdin)[0]["Id"])')"
-python3 -c 'import json,sys; print(json.dumps({"schema_version":1,"source_sha":sys.argv[1],"binary_sha256":sys.argv[2],"image_id":sys.argv[3]}))' "$source_sha" "$binary_sha" "$image_id" > engine/dist/go-engine.distro.json
+printf '%s\\n' "$image_id" > engine/dist/go-engine.image-id
 """
 
 [tasks."distros:smoke-test"]
@@ -44,11 +44,11 @@ run = """
 set -eu
 source_sha="$(git -C engine rev-parse HEAD)"
 binary_sha="$(sha256sum engine/dist/go-engine | cut -d' ' -f1)"
-manifest="engine/dist/go-engine.distro.json"
-manifest_image="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["image_id"])' "$manifest")"
+image_id_file="engine/dist/go-engine.image-id"
+expected_image_id="$(cat "$image_id_file")"
 image="orglang/go-engine:$source_sha"
 image_id="$(docker image inspect "$image" | python3 -c 'import json,sys; print(json.load(sys.stdin)[0]["Id"])')"
-test "$image_id" = "$manifest_image"
+test "$image_id" = "$expected_image_id"
 checks="$(docker run --rm --entrypoint /bin/sh "$image" -ec 'test -x /orglang/go-engine; sha256sum /orglang/go-engine')"
 actual_sha="$(printf '%s' "$checks" | awk 'NR == 1 {print $1}')"
 label_sha="$(docker image inspect "$image" | python3 -c 'import json,sys; print(json.load(sys.stdin)[0]["Config"]["Labels"]["orglang.binary.digest"])')"
@@ -64,7 +64,7 @@ run = """
 set -eu
 source_sha="$(git -C engine rev-parse HEAD)"
 image="orglang/go-engine:$source_sha"
-expected_image="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["image_id"])' engine/dist/go-engine.distro.json)"
+expected_image="$(cat engine/dist/go-engine.image-id)"
 actual_image="$(docker image inspect "$image" | python3 -c 'import json,sys; print(json.load(sys.stdin)[0]["Id"])')"
 test "$actual_image" = "$expected_image"
 ENGINE_IMAGE="$image" mise run stand "{{ usage.target }}"
