@@ -31,9 +31,9 @@ set -eu
 source_sha="$(git -C engine rev-parse HEAD)"
 binary_sha="$(sha256sum engine/dist/go-engine | cut -d' ' -f1)"
 manifest="engine/dist/go-engine.provenance.json"
-manifest_source="$(sed -n 's/.*"source_sha":"\([^"]*\)".*/\1/p' "$manifest")"
-manifest_spec="$(sed -n 's/.*"spec_sha":"\([^"]*\)".*/\1/p' "$manifest")"
-manifest_binary="$(sed -n 's/.*"binary_sha256":"\([^"]*\)".*/\1/p' "$manifest")"
+manifest_source="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["source_sha"])' "$manifest")"
+manifest_spec="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["spec_sha"])' "$manifest")"
+manifest_binary="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["binary_sha256"])' "$manifest")"
 test -x engine/dist/go-engine
 test "$manifest_source" = "$source_sha"
 test -n "$manifest_spec"
@@ -42,8 +42,7 @@ test "$manifest_binary" = "$binary_sha"
 ENGINE_SOURCE_SHA="$source_sha" ENGINE_BINARY_SHA="$binary_sha" docker buildx bake
 image="orglang/go-engine:$source_sha"
 image_id="$(docker image inspect "$image" | python3 -c 'import json,sys; print(json.load(sys.stdin)[0]["Id"])')"
-printf '{"schema_version":1,"source_sha":"%s","binary_sha256":"%s","image_id":"%s"}\n' \
-  "$source_sha" "$binary_sha" "$image_id" > engine/dist/go-engine.distro.json
+python3 -c 'import json,sys; print(json.dumps({"schema_version":1,"source_sha":sys.argv[1],"binary_sha256":sys.argv[2],"image_id":sys.argv[3]}))' "$source_sha" "$binary_sha" "$image_id" > engine/dist/go-engine.distro.json
 """
 
 [tasks."distros:smoke-test"]
@@ -54,13 +53,13 @@ set -eu
 source_sha="$(git -C engine rev-parse HEAD)"
 binary_sha="$(sha256sum engine/dist/go-engine | cut -d' ' -f1)"
 manifest="engine/dist/go-engine.distro.json"
-manifest_image="$(sed -n 's/.*"image_id":"\([^"]*\)".*/\1/p' "$manifest")"
+manifest_image="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["image_id"])' "$manifest")"
 image="orglang/go-engine:$source_sha"
 image_id="$(docker image inspect "$image" | python3 -c 'import json,sys; print(json.load(sys.stdin)[0]["Id"])')"
 test "$image_id" = "$manifest_image"
 checks="$(docker run --rm --entrypoint /bin/sh "$image" -ec 'test -x /orglang/go-engine; test -s /orglang/provenance.json; sha256sum /orglang/go-engine /orglang/provenance.json')"
-actual_sha="$(printf '%s\\n' "$checks" | awk 'NR == 1 {print $1}')"
-actual_manifest_sha="$(printf '%s\\n' "$checks" | awk 'NR == 2 {print $1}')"
+actual_sha="$(printf '%s' "$checks" | awk 'NR == 1 {print $1}')"
+actual_manifest_sha="$(printf '%s' "$checks" | awk 'NR == 2 {print $1}')"
 expected_manifest_sha="$(sha256sum engine/dist/go-engine.provenance.json | cut -d' ' -f1)"
 label_sha="$(docker image inspect "$image" | python3 -c 'import json,sys; print(json.load(sys.stdin)[0]["Config"]["Labels"]["orglang.binary.digest"])')"
 test "$actual_sha" = "$binary_sha"
@@ -76,7 +75,7 @@ run = """
 set -eu
 source_sha="$(git -C engine rev-parse HEAD)"
 image="orglang/go-engine:$source_sha"
-expected_image="$(sed -n 's/.*"image_id":"\([^"]*\)".*/\1/p' engine/dist/go-engine.distro.json)"
+expected_image="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["image_id"])' engine/dist/go-engine.distro.json)"
 actual_image="$(docker image inspect "$image" | python3 -c 'import json,sys; print(json.load(sys.stdin)[0]["Id"])')"
 test "$actual_image" = "$expected_image"
 ENGINE_IMAGE="$image" mise run stand "{{ usage.target }}"
@@ -107,15 +106,7 @@ tools = { docker-cli = "29.9.3", docker-compose = "5.7.1" }
 dir = "stack"
 usage = 'arg "<ops>" help="Stack operations profile" { choices "commons" }'
 run = """
-docker compose \
-  --file ops/postgres.compose.yaml \
-  --file ops/engine.compose.yaml \
-  --env-file "ops/{{ usage.ops }}/.env" \
-  up \
-  --remove-orphans \
-  --pull missing \
-  --quiet-pull \
-  --detach
+docker compose --file ops/postgres.compose.yaml --file ops/engine.compose.yaml --env-file "ops/{{ usage.ops }}/.env" up --remove-orphans --pull missing --quiet-pull --detach
 """
 
 [tasks.stack]
