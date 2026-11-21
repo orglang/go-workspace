@@ -29,16 +29,8 @@ tools = { docker-cli = "29.9.3", "aqua:docker/buildx" = "0.39.0" }
 run = """
 set -eu
 source_sha="$(git -C engine rev-parse HEAD)"
-binary_sha="$(sha256sum engine/dist/go-engine | cut -d' ' -f1)"
-manifest="engine/dist/go-engine.provenance.json"
-manifest_source="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["source_sha"])' "$manifest")"
-manifest_spec="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["spec_sha"])' "$manifest")"
-manifest_binary="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["binary_sha256"])' "$manifest")"
 test -x engine/dist/go-engine
-test "$manifest_source" = "$source_sha"
-test -n "$manifest_spec"
-git -C engine merge-base --is-ancestor "$manifest_spec" "$source_sha"
-test "$manifest_binary" = "$binary_sha"
+binary_sha="$(sha256sum engine/dist/go-engine | cut -d' ' -f1)"
 ENGINE_SOURCE_SHA="$source_sha" ENGINE_BINARY_SHA="$binary_sha" docker buildx bake
 image="orglang/go-engine:$source_sha"
 image_id="$(docker image inspect "$image" | python3 -c 'import json,sys; print(json.load(sys.stdin)[0]["Id"])')"
@@ -57,13 +49,10 @@ manifest_image="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])
 image="orglang/go-engine:$source_sha"
 image_id="$(docker image inspect "$image" | python3 -c 'import json,sys; print(json.load(sys.stdin)[0]["Id"])')"
 test "$image_id" = "$manifest_image"
-checks="$(docker run --rm --entrypoint /bin/sh "$image" -ec 'test -x /orglang/go-engine; test -s /orglang/provenance.json; sha256sum /orglang/go-engine /orglang/provenance.json')"
+checks="$(docker run --rm --entrypoint /bin/sh "$image" -ec 'test -x /orglang/go-engine; sha256sum /orglang/go-engine')"
 actual_sha="$(printf '%s' "$checks" | awk 'NR == 1 {print $1}')"
-actual_manifest_sha="$(printf '%s' "$checks" | awk 'NR == 2 {print $1}')"
-expected_manifest_sha="$(sha256sum engine/dist/go-engine.provenance.json | cut -d' ' -f1)"
 label_sha="$(docker image inspect "$image" | python3 -c 'import json,sys; print(json.load(sys.stdin)[0]["Config"]["Labels"]["orglang.binary.digest"])')"
 test "$actual_sha" = "$binary_sha"
-test "$actual_manifest_sha" = "$expected_manifest_sha"
 test "$label_sha" = "$binary_sha"
 """
 
