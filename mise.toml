@@ -34,7 +34,7 @@ binary_sha="$(sha256sum engine/dist/go-engine | cut -d' ' -f1)"
 ENGINE_SOURCE_SHA="$source_sha" ENGINE_BINARY_SHA="$binary_sha" docker buildx bake
 image="orglang/go-engine:$source_sha"
 image_id="$(docker image inspect "$image" | python3 -c 'import json,sys; print(json.load(sys.stdin)[0]["Id"])')"
-printf '%s\\n' "$image_id" > engine/dist/go-engine.image-id
+printf '%s\n' "$image_id" > engine/dist/go-engine.image-id
 """
 
 [tasks."distros:smoke-test"]
