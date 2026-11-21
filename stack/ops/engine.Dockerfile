@@ -3,7 +3,6 @@ FROM alpine:3.22
 WORKDIR /orglang
 
 COPY engine/dist/go-engine /orglang/go-engine
-COPY engine/dist/go-engine.provenance.json /orglang/provenance.json
 COPY engine/cmd/engine/reference.yaml /orglang/reference.yaml
 
 ARG ENGINE_SOURCE_SHA
