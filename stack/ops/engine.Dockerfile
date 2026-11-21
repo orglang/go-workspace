@@ -1,29 +1,15 @@
-# syntax=docker/dockerfile:1
-
-FROM golang:1.27.0-alpine AS builder
-
-WORKDIR /orglang
-
-# Keep dependency metadata separate from source so source-only changes reuse this layer.
-COPY go.work go.work.sum ./
-COPY engine/go.mod engine/go.sum ./engine/
-COPY sdk/go.mod sdk/go.sum ./sdk/
-
-# Keep downloaded modules in the layer cache: BuildKit's GHA cache exporter does
-# not persist cache-mount contents across ephemeral CI builders.
-RUN go mod download
-
-COPY . .
-
-RUN --mount=type=cache,target=/root/.cache/go-build \
-    go build -o go-engine engine/cmd/engine/main.go
-
 FROM alpine:3.22
 
 WORKDIR /orglang
 
-COPY engine/cmd/engine/reference.yaml .
+COPY engine/dist/go-engine /orglang/go-engine
+COPY engine/dist/go-engine.provenance.json /orglang/provenance.json
+COPY engine/cmd/engine/reference.yaml /orglang/reference.yaml
 
-COPY --from=builder /orglang/go-engine .
+ARG ENGINE_SOURCE_SHA
+ARG ENGINE_BINARY_SHA
+
+LABEL org.opencontainers.image.revision="${ENGINE_SOURCE_SHA}" \
+      orglang.binary.digest="${ENGINE_BINARY_SHA}"
 
 ENTRYPOINT ["/orglang/go-engine"]
