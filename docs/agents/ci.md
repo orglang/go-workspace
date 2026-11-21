@@ -22,13 +22,15 @@ A downstream stage must consume the exact upstream artifact, not rebuild it from
 
 ## Verification
 
-Follow the common lifecycle defined in [#43](https://github.com/orglang/go-workspace/issues/43):
+The common lifecycle from [#43](https://github.com/orglang/go-workspace/issues/43) is:
 
 ```text
 prepare → check1 → install → check2 → [publish]
 ```
 
-For binaries, `check1` runs unit tests and `check2` runs integration tests. Each check must verify the artifact or revision assigned to its stage and must not silently substitute a rebuilt output.
+For sources, the full lifecycle applies to local development and source-artifact creation. CI does not run the source `prepare`, `install`, or `publish` steps; it verifies the checked-out revision through `check1` and `check2` only.
+
+For binaries, `check1` runs unit tests and `check2` runs integration tests. Each CI check must verify the artifact or revision assigned to its stage and must not silently substitute a rebuilt output.
 
 ## Tooling
 
