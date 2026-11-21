@@ -18,7 +18,7 @@ specs → sources → binaries → distros → workloads
 
 The arrows describe the lifecycle, not implicit job dependencies. Every operation must declare its actual inputs.
 
-A downstream stage consumes the exact upstream artifact, not a rebuild from a mutable checkout. The engine binary build writes `dist/go-engine` and `dist/go-engine.provenance.json`; the manifest records the source commit, the latest commit that changed the specification inputs, and the binary SHA-256. Distro packaging verifies those values and copies the binary and manifest into the image without compiling the application. The image is tagged with the source commit, and smoke-test and deploy both use that immutable tag.
+A downstream stage consumes the exact upstream artifact, not a rebuild from a mutable checkout. The Engine Binaries stage produces `dist/go-engine`; Distros consumes that same binary and packages it with runtime and migration inputs without compiling the application. The image is tagged with the source commit, and smoke-test and deploy both use that immutable tag. Provenance metadata and supply-chain attestations are tracked separately and are not required by this lifecycle.
 
 ## Stage task interfaces
 
@@ -38,18 +38,18 @@ Installing the prepared specification as a Git commit and publishing/pushing it 
 - `sources:lint` runs Go linting without modifying files.
 - `sources:analyze` runs `go vet` and the architecture rules enforced by `depguard`.
 
-Installing the prepared sources as a Git commit and publishing/pushing it are manual operations. The source commit consumed by `binaries:build` includes the prepared specifications; the binary provenance manifest records both revisions.
+Installing the prepared sources as a Git commit and publishing/pushing it are manual operations. The source commit consumed by `binaries:build` includes the prepared specifications.
 
 ### Binaries
 
 - `binaries:unit-test` runs unit tests.
-- `binaries:build` builds `dist/go-engine` from the checked-out source commit and writes its provenance manifest.
+- `binaries:build` builds `dist/go-engine` from the checked-out source commit.
 - `binaries:integration-test` runs integration tests after the build.
 - `binaries:gate` runs unit tests, build, then integration tests, in that order.
 
 ### Distros
 
-- `distros:package` verifies the binary manifest and packages that exact binary with runtime and migration inputs. It does not compile the application.
+- `distros:package` packages the exact binary artifact with runtime and migration inputs. It does not compile the application.
 - `distros:smoke-test` executes the packaged image and verifies the binary digest inside it.
 - `distros:deploy <target>` deploys the commit-tagged image into the selected environment.
 - `distros:e2e-test <target>` runs end-to-end tests against that deployment.
@@ -67,7 +67,7 @@ prepare → check1 → install → check2 → [publish]
 
 CI runs the Specs and Sources gates, lint, and analysis against the revision under test. It does not perform the manual Git commit/install or publication steps.
 
-For binaries, unit tests run before the build and integration tests after it. Each stage operates on the exact checked-out revision; the binary manifest ties the output to its source and specification commits.
+For binaries, unit tests run before the build and integration tests after it. Each stage operates on the exact checked-out revision; Distros must consume the binary produced by that Binaries run rather than rebuilding it.
 
 ## Tooling
 
