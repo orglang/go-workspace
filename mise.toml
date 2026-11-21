@@ -15,23 +15,69 @@ run = [
 ]
 
 [tasks."binaries:build"]
-description = "Test and build component binaries"
-# This operation is still a Taskfile task; mise monorepo addressing exposes only mise tasks.
-run = "mise -C engine exec -- task binaries"
+description = "Build the engine binary artifact"
+run = "mise -C engine exec -- task binaries:build"
 
 [tasks.binaries]
 alias = "bins"
 description = "Test and build all binaries"
-depends = ["binaries:build"]
+depends = ["//engine:binaries:gate"]
 
-[tasks."distros:build"]
-description = "Build all distribution artifacts"
+[tasks."distros:package"]
+description = "Package the exact engine binary and PostgreSQL migrations"
 tools = { docker-cli = "29.9.3", "aqua:docker/buildx" = "0.39.0" }
-run = "docker buildx bake"
+run = """
+set -eu
+source_sha="$(git -C engine rev-parse HEAD)"
+binary_sha="$(sha256sum engine/dist/go-engine | cut -d' ' -f1)"
+manifest="engine/dist/go-engine.provenance.json"
+manifest_source="$(sed -n 's/.*"source_sha":"\([^"]*\)".*/\1/p' "$manifest")"
+manifest_spec="$(sed -n 's/.*"spec_sha":"\([^"]*\)".*/\1/p' "$manifest")"
+manifest_binary="$(sed -n 's/.*"binary_sha256":"\([^"]*\)".*/\1/p' "$manifest")"
+test -x engine/dist/go-engine
+test "$manifest_source" = "$source_sha"
+test -n "$manifest_spec"
+git -C engine merge-base --is-ancestor "$manifest_spec" "$source_sha"
+test "$manifest_binary" = "$binary_sha"
+ENGINE_SOURCE_SHA="$source_sha" ENGINE_BINARY_SHA="$binary_sha" docker buildx bake
+"""
 
-[tasks.distros]
-description = "Build all distros"
-depends = ["distros:build"]
+[tasks."distros:smoke-test"]
+description = "Smoke-test the packaged image and verify its binary digest"
+tools = { docker-cli = "29.9.3" }
+run = """
+set -eu
+source_sha="$(git -C engine rev-parse HEAD)"
+binary_sha="$(sha256sum engine/dist/go-engine | cut -d' ' -f1)"
+image="orglang/go-engine:$source_sha"
+actual_sha="$(docker run --rm --entrypoint /bin/sh "$image" -ec 'test -x /orglang/go-engine; test -s /orglang/provenance.json; sha256sum /orglang/go-engine | cut -d" " -f1')"
+test "$actual_sha" = "$binary_sha"
+"""
+
+[tasks."distros:deploy"]
+description = "Deploy the packaged artifact to the selected target environment"
+tools = { docker-cli = "29.9.3", docker-compose = "5.7.1" }
+usage = 'arg "<target>" help="Target environment" { choices "commons" }'
+run = """
+source_sha="$(git -C engine rev-parse HEAD)"
+ENGINE_IMAGE="orglang/go-engine:$source_sha" mise run stand "{{ usage.target }}"
+"""
+
+[tasks."distros:e2e-test"]
+description = "Run end-to-end tests against the selected deployment"
+usage = 'arg "<target>" help="Target environment" { choices "commons" }'
+run = 'E2E_TARGET="{{ usage.target }}" mise -C engine exec -- task tests:e2e'
+
+[tasks."distros:gate"]
+description = "Package, smoke-test, deploy, and E2E-test one immutable distro"
+depends = ["//engine:binaries:gate"]
+usage = 'arg "<target>" help="Target environment" { choices "commons" }'
+run = [
+  { task = ":distros:package" },
+  { task = ":distros:smoke-test" },
+  { task = ":distros:deploy", args = ["{{ usage.target }}"] },
+  { task = ":distros:e2e-test", args = ["{{ usage.target }}"] },
+]
 
 [tasks.stand]
 description = "Start specified stand"
@@ -58,32 +104,4 @@ run = [
   # E2E tests are still defined in the engine Taskfile, not in its mise config.
   "mise -C engine exec -- task tests:e2e",
   "echo stack were built",
-]
-
-[tasks."distros:gate"]
-description = "Run engine Binaries and workspace Distros checks"
-depends = ["//engine:binaries:gate"]
-dir = "engine"
-sources = [
-  "Dockerfile",
-  "Dockerfile.*",
-  "**/Dockerfile",
-  "**/Dockerfile.*",
-  "*.Dockerfile",
-  "**/*.Dockerfile",
-  ".dockerignore",
-  "compose.yaml",
-  "compose.yml",
-  "*.compose.yaml",
-  "*.compose.yml",
-  "**/compose.yaml",
-  "**/compose.yml",
-  "**/*.compose.yaml",
-  "**/*.compose.yml",
-  "../stack/**",
-]
-outputs = []
-run = [
-  { task = ":distros" },
-  { task = ":stack", args = ["commons"] },
 ]
