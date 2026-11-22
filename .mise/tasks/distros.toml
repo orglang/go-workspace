@@ -1,0 +1,61 @@
+["distros:package"]
+description = "Package distribution artifacts"
+dir = "."
+run = "docker buildx bake"
+
+["distros:smoke-test"]
+description = "Smoke-test the packaged distribution artifact"
+# TODO: Define a container-level smoke test for the packaged image.
+run = "true"
+
+["distros:deploy"]
+description = "Deploy the packaged distro to the selected target"
+dir = "stack"
+usage = 'arg "<target>" help="Deployment target" { choices "commons" }'
+run = """
+docker compose \
+  --file ops/postgres.compose.yaml \
+  --file ops/engine.compose.yaml \
+  --env-file "ops/{{ usage.target }}/.env" \
+  up \
+  --remove-orphans \
+  --pull missing \
+  --quiet-pull \
+  --detach
+"""
+
+["distros:e2e-test"]
+description = "Run end-to-end tests against the selected deployment"
+usage = 'arg "<target>" help="Deployment target" { choices "commons" }'
+run = "mise -C engine exec -- go test -failfast ./test/e2e/..."
+
+["distros:gate"]
+description = "Run the Engine Binaries gate and Workspace Distros lifecycle"
+depends = ["//engine:binaries:gate"]
+usage = 'arg "<target>" help="Deployment target" { choices "commons" }'
+dir = "engine"
+sources = [
+  "Dockerfile",
+  "Dockerfile.*",
+  "**/Dockerfile",
+  "**/Dockerfile.*",
+  "*.Dockerfile",
+  "**/*.Dockerfile",
+  ".dockerignore",
+  "compose.yaml",
+  "compose.yml",
+  "*.compose.yaml",
+  "*.compose.yml",
+  "**/compose.yaml",
+  "**/compose.yml",
+  "**/*.compose.yaml",
+  "**/*.compose.yml",
+  "../stack/**",
+]
+outputs = []
+run = [
+  { task = ":distros:package" },
+  { task = ":distros:smoke-test" },
+  { task = ":distros:deploy", args = ["{{ usage.target }}"] },
+  { task = ":distros:e2e-test", args = ["{{ usage.target }}"] },
+]
