@@ -17,10 +17,16 @@ run = [
 [tasks."distros:package"]
 description = "Package distribution artifacts"
 tools = { docker-cli = "29.9.3", "aqua:docker/buildx" = "0.39.0" }
+dir = "."
 run = "docker buildx bake"
 
-[tasks.stand]
-description = "Start specified stand"
+[tasks."distros:smoke-test"]
+description = "Smoke-test the packaged distribution artifact"
+# TODO: Define a container-level smoke test for the packaged image.
+run = "true"
+
+[tasks."distros:deploy"]
+description = "Deploy the packaged distro to the selected target"
 tools = { docker-cli = "29.9.3", docker-compose = "5.7.1" }
 dir = "stack"
 usage = 'arg "<target>" help="Deployment target" { choices "commons" }'
@@ -35,11 +41,6 @@ docker compose \
   --quiet-pull \
   --detach
 """
-
-[tasks."distros:deploy"]
-description = "Deploy the packaged distro to the selected target"
-usage = 'arg "<target>" help="Deployment target" { choices "commons" }'
-run = "mise run stand {{ usage.target }}"
 
 [tasks."distros:e2e-test"]
 description = "Run end-to-end tests against the selected deployment"
@@ -72,6 +73,7 @@ sources = [
 outputs = []
 run = [
   { task = ":distros:package" },
+  { task = ":distros:smoke-test" },
   { task = ":distros:deploy", args = ["{{ usage.target }}"] },
   { task = ":distros:e2e-test", args = ["{{ usage.target }}"] },
 ]
