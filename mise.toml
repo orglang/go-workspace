@@ -45,7 +45,7 @@ docker compose \
 [tasks."distros:e2e-test"]
 description = "Run end-to-end tests against the selected deployment"
 usage = 'arg "<target>" help="Deployment target" { choices "commons" }'
-run = "mise -C engine exec -- go test -failfast ./test/..."
+run = "mise -C engine exec -- go test -failfast ./test/e2e/..."
 
 [tasks."distros:gate"]
 description = "Run the Engine Binaries gate and Workspace Distros lifecycle"
