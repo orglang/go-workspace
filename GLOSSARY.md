@@ -78,8 +78,8 @@ _Avoid_: pure, clean, inner layer
 
 **DTO**:
 A representation shaped for crossing a boundary — tagged for JSON or form
-encoding, or mirroring the SDK's DTOs. Distinct from the model the core
-reasons about, and always produced by an adapter.
+encoding, or matching an external API's wire schema. Distinct from the model
+the core reasons about, and always produced by an adapter.
 _Avoid_: edge model, wire model
 
 **Conversion**:
