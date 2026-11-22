@@ -33,7 +33,6 @@ run = "mise -C engine exec -- go test -failfast ./test/e2e/..."
 description = "Run the Engine Binaries gate and Workspace Distros lifecycle"
 depends = ["//engine:binaries:gate"]
 usage = 'arg "<target>" help="Deployment target" { choices "commons" }'
-dir = "engine"
 sources = [
   "Dockerfile",
   "Dockerfile.*",
@@ -50,9 +49,9 @@ sources = [
   "**/compose.yml",
   "**/*.compose.yaml",
   "**/*.compose.yml",
-  "../stack/**",
-  "../.mise/tasks/distros.toml",
-  "../.mise/conf.d/distros.toml",
+  "stack/**",
+  ".mise/tasks/distros.toml",
+  ".mise/conf.d/distros.toml",
 ]
 outputs = []
 run = [
