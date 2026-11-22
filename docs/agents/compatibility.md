@@ -3,7 +3,7 @@
 Treat these as compatibility-sensitive:
 
 - exported Go APIs;
-- SDK DTOs and serialized/wire formats;
+- HTTP DTOs and serialized/wire formats;
 - public protocols;
 - database schemas and persisted data;
 - CLI/configuration interfaces;
