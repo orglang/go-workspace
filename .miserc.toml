@@ -1,2 +1,0 @@
-[env_sets]
-distros = ["distros-dev", "distros-run"]
