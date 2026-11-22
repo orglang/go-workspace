@@ -12,7 +12,7 @@ go-workspace/
 └── engine/   # separate Git repository: orglang/go-engine
 ```
 
-The application source, its `go.mod`, history, CI configuration, and release lifecycle belong to `orglang/go-engine`. The meta-repository coordinates development and integration workflows without introducing a Go workspace or a second module boundary.
+The application source, its `go.mod`, history, CI configuration, and release lifecycle belong to `orglang/go-engine`. The meta-repository coordinates development and integration workflows; the root `go.work` exposes only `./engine` for local tooling and does not combine multiple application modules.
 
 ## Application Responsibility
 
