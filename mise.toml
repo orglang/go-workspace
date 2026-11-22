@@ -14,24 +14,10 @@ run = [
   "mise -E distros-run lock",
 ]
 
-[tasks."binaries:build"]
-description = "Test and build component binaries"
-# This operation is still a Taskfile task; mise monorepo addressing exposes only mise tasks.
-run = "mise -C engine run binaries:gate"
-
-[tasks.binaries]
-alias = "bins"
-description = "Test and build all binaries"
-depends = ["binaries:build"]
-
-[tasks."distros:build"]
-description = "Build all distribution artifacts"
+[tasks."distros:package"]
+description = "Package distribution artifacts"
 tools = { docker-cli = "29.9.3", "aqua:docker/buildx" = "0.39.0" }
 run = "docker buildx bake"
-
-[tasks.distros]
-description = "Build all distros"
-depends = ["distros:build"]
 
 [tasks.stand]
 description = "Start specified stand"
@@ -83,6 +69,6 @@ sources = [
 ]
 outputs = []
 run = [
-  { task = ":distros" },
+  { task = ":distros:package" },
   { task = ":stack", args = ["commons"] },
 ]
