@@ -2,41 +2,28 @@
 
 ## Repository Purpose
 
-`go-workspace` is a meta-repository for developing Orglang modules together. It is not a single Go module and does not own the engine source code.
+`go-workspace` is a meta-repository for coordinating Orglang development. It contains cross-repository documentation and automation; it is not a Go module and does not own application source code.
 
 ```text
 go-workspace/
 ├── AGENTS.md
 ├── README.md
-├── go.work
-├── engine/   # separate Git repository: orglang/go-engine
-└── sdk/      # separate Git repository: orglang/go-sdk
+├── docs/
+└── engine/   # separate Git repository: orglang/go-engine
 ```
 
-The root `go.work` brings the local modules together:
+The application source, its `go.mod`, history, CI configuration, and release lifecycle belong to `orglang/go-engine`. The meta-repository coordinates development and integration workflows without introducing a Go workspace or a second module boundary.
 
-```go
-go 1.27.0
+## Application Responsibility
 
-use (
-    ./engine
-    ./sdk
-)
-```
+- **engine** — the Orglang runtime, domain model, HTTP API, and process execution.
+- **go-workspace** — cross-repository coordination, integration automation, and development documentation.
 
-Each nested repository keeps its own `.git` directory, `go.mod`, history, CI configuration, and release lifecycle. The workspace provides a shared local development context without erasing those repository boundaries.
-
-## Module Responsibilities
-
-- **engine** — runtime, domain model, and process execution.
-- **sdk** — public types and APIs intended for engine consumers.
-- **go-workspace** — coordination of local module development, workspace configuration, and documentation for working across modules.
-
-Changes to engine source code belong in `orglang/go-engine`; SDK source changes belong in `orglang/go-sdk`. The root repository should contain only changes that concern the workspace as a whole.
+Changes to application source code belong in `orglang/go-engine`. The root repository should contain only changes that concern coordination, shared automation, or documentation.
 
 ## Engine Architecture
 
-The current `engine` layout is organized around business capabilities and keeps core logic separate from adapters. Preserve this structure rather than adding generic `domain/`, `application/`, and `infrastructure/` layers on top of the existing packages.
+The `engine` layout is organized around business capabilities and keeps core logic separate from adapters. Preserve this structure rather than adding generic `domain/`, `application/`, and `infrastructure/` layers on top of the existing packages.
 
 ```text
 engine/
@@ -104,23 +91,16 @@ The migration is intended to proceed in small vertical steps:
 3. Update only the wiring; avoid changing public contracts unless necessary.
 4. Run unit/integration tests and build checks.
 5. Repeat for the next capability.
-6. Enforce dependency boundaries with `depguard` so core/domain packages cannot import drivers, SDK packages, or concrete adapters.
+6. Enforce dependency boundaries with `depguard` so core/domain packages cannot import transport or infrastructure implementations.
 7. Update capability documentation after each migration is complete.
 
-## Working with the Workspace
+## Working with the Application
 
 From the workspace root:
 
 ```bash
-# Inspect the selected workspace
-go env GOWORK
-
-# Synchronize dependencies across workspace modules
-go work sync
-
-# Test each module independently
+# Test the application
 (cd engine && go test ./...)
-(cd sdk && go test ./...)
 ```
 
-Testing modules independently is important: the presence of `go.work` must not hide invalid dependencies that would be unavailable to consumers of a published module.
+Run tests from the application repository as well, so validation uses its own module configuration and does not rely on an external workspace.
