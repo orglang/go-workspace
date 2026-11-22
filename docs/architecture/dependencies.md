@@ -1,22 +1,22 @@
 # Core dependency boundaries
 
-The dependency direction between the three aggregates is intentionally asymmetric. `adt` is the upstream shared domain kernel; `proc` and `pool` are independent application aggregates.
+The dependency direction between the three aggregates is intentionally asymmetric. `part` is the generic participant abstraction implemented by `proc` and `pool`; those are independent application aggregates. The abstraction is currently implemented in the Go source tree under `internal/adt` (including its existing package paths).
 
 ## Rules
 
-- **ADT is foundational.** ADT packages own shared domain values, semantic contracts, and contracts for ADT-owned persistence. ADT code may depend on other ADT packages, but never on `proc`, `pool`, or the `prog` composition root.
-- **PROC may use ADT and PROC.** Process core may depend on shared ADT domain contracts and other process capabilities. It must not import pool core, adapters, persistence/application contracts, or the `prog` composition root.
-- **POOL may use ADT and POOL.** Pool core may depend on shared ADT domain contracts and other pool capabilities. It must not import process core, adapters, persistence/application contracts, or the `prog` composition root.
+- **Part is generic.** Part packages own concepts, semantic contracts, and contracts for Part-owned persistence that are common to participant specializations. Part code may depend on other Part packages, but never on `proc`, `pool`, or the `prog` composition root.
+- **PROC specializes Part.** Process core may depend on Part contracts and other process capabilities. It must not import pool core, adapters, persistence/application contracts, or the `prog` composition root.
+- **POOL specializes Part.** Pool core may depend on Part contracts and other pool capabilities. It must not import process core, adapters, persistence/application contracts, or the `prog` composition root.
 - **Composition happens outside the aggregates.** The application composition root (for example, `prog` or bootstrap wiring) may assemble both aggregates and connect their ports. It may depend on both aggregates; dependencies must never point back into the composition root.
-- **Keep aggregate-local ports local.** A port required by a PROC use case belongs to PROC; a port required by a POOL use case belongs to POOL. ADT-owned ports remain in ADT, but do not move a PROC- or POOL-owned port into ADT, or import another application aggregate's contracts to reuse an interface.
+- **Keep aggregate-local ports local.** A port required by a PROC use case belongs to PROC; a port required by a POOL use case belongs to POOL. Part-owned ports remain in Part, but do not move a PROC- or POOL-owned port into Part, or import another application aggregate's contracts to reuse an interface.
 
-The rules apply to aggregate core packages. They do not prohibit an aggregate from using its own capability packages, or either aggregate from using ADT-owned domain contracts. Existing adapter-direction rules continue to apply independently.
+The rules apply to aggregate core packages. They do not prohibit an aggregate from using its own capability packages, or either aggregate from using Part-owned domain contracts. Existing adapter-direction rules continue to apply independently.
 
 ## Dependency matrix
 
-| Source core | ADT | Same aggregate | Other application aggregate |
+| Source core | Part | Same aggregate | Other application aggregate |
 |---|---:|---:|---:|
-| ADT | Allowed | — | Forbidden |
+| Part | Allowed | — | Forbidden |
 | PROC | Allowed | Allowed | POOL forbidden |
 | POOL | Allowed | Allowed | PROC forbidden |
 
@@ -55,8 +55,8 @@ import "orglang/go-engine/internal/pool/typedef/core"
 // internal/pool/<capability>/core must not import:
 import "orglang/go-engine/internal/proc/typedef/core"
 
-// internal/adt/<concept> must not import either application aggregate:
+// Part packages (currently under internal/adt) must not import either application aggregate:
 import "orglang/go-engine/internal/proc/typedef/core"
 ```
 
-The import restrictions are encoded in `engine/.golangci.yml` under `depguard`. Keep the rules here and the linter configuration aligned when aggregate boundaries change.
+The import restrictions are encoded in `engine/.golangci.yml` under `depguard`. The rule is named `Part`; its file and import patterns retain the current `internal/adt` source paths. Keep the rules here and the linter configuration aligned when aggregate boundaries change.
