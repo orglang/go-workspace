@@ -8,4 +8,4 @@ Pilot: `pool/typedef` — smallest aggregate with a complete set of concerns (pr
 
 We do not attempt a big-bang move of all 19 packages / 144 files. It would concentrate every compile break into one unreviewable change.
 
-Engine first, as the reference implementation. SDK afterwards.
+The engine is the reference implementation for this migration.
