@@ -51,6 +51,8 @@ sources = [
   "**/*.compose.yaml",
   "**/*.compose.yml",
   "../stack/**",
+  "../.mise/tasks/distros.toml",
+  "../.mise/conf.d/distros.toml",
 ]
 outputs = []
 run = [
