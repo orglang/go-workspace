@@ -1,6 +1,6 @@
 ---
-name: Chekout repos
-description: Chekout repos
+name: Checkout repos
+description: Checkout the application repository
 inputs:
   ref:
     description: Branch ref
@@ -8,12 +8,6 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Checkout sdk repo
-      uses: actions/checkout@v6
-      with:
-        ref: ${{ inputs.ref }}
-        repository: orglang/go-sdk
-        path: sdk
     - name: Checkout engine repo
       uses: actions/checkout@v6
       with:
