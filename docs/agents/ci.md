@@ -16,9 +16,9 @@ specs → sources → binaries → distros → workloads
 | `distros` | Package binaries with the required runtime and distribution inputs. |
 | `workloads` | Deploy and verify the application in a target environment. |
 
-The arrows describe the lifecycle, not implicit job dependencies. Every operation must declare its actual inputs.
+The arrows describe the lifecycle, not implicit dependencies between independent workflow runs. Every operation must declare its actual inputs.
 
-A downstream stage consumes the exact upstream artifact, not a rebuild from a mutable checkout. The Engine Binaries stage produces `dist/go-engine`; Distros consumes that same binary and packages it with runtime and migration inputs without compiling the application. The image is tagged with the source commit, and smoke-test and deploy both use that immutable tag. Provenance metadata and supply-chain attestations are tracked separately and are not required by this lifecycle.
+For the initial implementation, the Distros gate invokes the Engine Binaries gate in the same workflow execution. That gate builds `dist/go-engine`, and packaging consumes that output without compiling the application again. The resulting image is tagged with the Engine source commit; smoke-test and deploy use that same image identity. Reusing a binary produced by a separate Binaries workflow run is deferred to [#129](https://github.com/orglang/go-workspace/issues/129). Provenance metadata and supply-chain attestations are tracked separately in [#126](https://github.com/orglang/go-workspace/issues/126).
 
 ## Stage task interfaces
 
@@ -38,7 +38,7 @@ Installing the prepared specification as a Git commit and publishing/pushing it 
 - `sources:lint` runs Go linting without modifying files.
 - `sources:analyze` runs `go vet` and the architecture rules enforced by `depguard`.
 
-Installing the prepared sources as a Git commit and publishing/pushing it are manual operations. The source commit consumed by `binaries:build` includes the prepared specifications.
+Installing the prepared sources as a Git commit and publishing/pushing them are manual operations. The source commit consumed by `binaries:build` includes the prepared specifications.
 
 ### Binaries
 
@@ -49,7 +49,7 @@ Installing the prepared sources as a Git commit and publishing/pushing it are ma
 
 ### Distros
 
-- `distros:package` packages the exact binary artifact with runtime and migration inputs. It does not compile the application.
+- `distros:package` packages the binary output produced by the Binaries gate with runtime and migration inputs. It does not compile the application.
 - `distros:smoke-test` executes the packaged image and verifies the binary digest inside it.
 - `distros:deploy <target>` deploys the commit-tagged image into the selected environment.
 - `distros:e2e-test <target>` runs end-to-end tests against that deployment.
@@ -67,7 +67,7 @@ prepare → check1 → install → check2 → [publish]
 
 CI runs the Specs and Sources gates, lint, and analysis against the revision under test. It does not perform the manual Git commit/install or publication steps.
 
-For binaries, unit tests run before the build and integration tests after it. Each stage operates on the exact checked-out revision; Distros must consume the binary produced by that Binaries run rather than rebuilding it.
+For binaries, unit tests run before the build and integration tests after it. In the current Distros execution, the Binaries gate builds the binary and packaging consumes that output in the same workflow run. Cross-run artifact transfer and reuse are deferred to [#129](https://github.com/orglang/go-workspace/issues/129).
 
 ## Tooling
 
