@@ -18,7 +18,7 @@ specs → sources → binaries → distros → workloads
 
 The arrows describe the lifecycle, not implicit dependencies between independent workflow runs. Every operation must declare its actual inputs.
 
-For the initial implementation, the Distros gate invokes the Engine Binaries gate in the same workflow execution. That gate builds `dist/go-engine`, and packaging consumes that output without compiling the application again. The resulting image is tagged with the Engine source commit; smoke-test and deploy use that same image identity. Reusing a binary produced by a separate Binaries workflow run is deferred to [#129](https://github.com/orglang/go-workspace/issues/129). Provenance metadata and supply-chain attestations are tracked separately in [#126](https://github.com/orglang/go-workspace/issues/126).
+For the initial implementation, the Distros gate invokes the Engine Binaries gate in the same workflow execution before running the Workspace packaging and deployment tasks. The current Docker Bake configuration still uses the source-build Dockerfile and the mutable `latest` image tag; replacing that with binary-copy packaging and immutable artifact identity is deferred to [#129](https://github.com/orglang/go-workspace/issues/129). The smoke-test task is currently an explicit no-op placeholder until a container-level check is defined. Provenance metadata and supply-chain attestations are tracked separately in [#126](https://github.com/orglang/go-workspace/issues/126).
 
 ## Stage task interfaces
 
@@ -49,9 +49,9 @@ Installing the prepared sources as a Git commit and publishing/pushing them are 
 
 ### Distros
 
-- `distros:package` packages the binary output produced by the Binaries gate with runtime and migration inputs. It does not compile the application.
-- `distros:smoke-test` executes the packaged image and verifies the binary digest inside it.
-- `distros:deploy <target>` deploys the commit-tagged image into the selected environment.
+- `distros:package` currently invokes Docker Bake using the existing source-build Dockerfile. Switching to packaging the Binaries gate output without recompiling is deferred to [#129](https://github.com/orglang/go-workspace/issues/129).
+- `distros:smoke-test` is a placeholder pending a defined container-level smoke-test contract.
+- `distros:deploy <target>` starts the Compose stack for the selected target using the image configured by Docker Compose.
 - `distros:e2e-test <target>` runs end-to-end tests against that deployment.
 - `distros:gate <target>` runs package, smoke-test, deploy, and E2E-test in order, passing the same target to both deployment and E2E testing.
 
