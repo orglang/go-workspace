@@ -5,10 +5,10 @@ The dependency direction between the three aggregates is intentionally asymmetri
 ## Rules
 
 - **Part is generic.** Part packages own concepts, semantic contracts, and contracts for Part-owned persistence that are common to participant specializations. Part code may depend on other Part packages, but never on `proc`, `pool`, or the `prog` composition root.
-- **PROC specializes Part.** Process core may depend on Part contracts and other process capabilities. It must not import pool core, adapters, persistence/application contracts, or the `prog` composition root.
-- **POOL specializes Part.** Pool core may depend on Part contracts and other pool capabilities. It must not import process core, adapters, persistence/application contracts, or the `prog` composition root.
+- **proc specializes Part.** Process core may depend on Part contracts and other process capabilities. It must not import pool core, adapters, persistence/application contracts, or the `prog` composition root.
+- **pool specializes Part.** Pool core may depend on Part contracts and other pool capabilities. It must not import process core, adapters, persistence/application contracts, or the `prog` composition root.
 - **Composition happens outside the aggregates.** The application composition root (for example, `prog` or bootstrap wiring) may assemble both aggregates and connect their ports. It may depend on both aggregates; dependencies must never point back into the composition root.
-- **Keep aggregate-local ports local.** A port required by a PROC use case belongs to PROC; a port required by a POOL use case belongs to POOL. Part-owned ports remain in Part, but do not move a PROC- or POOL-owned port into Part, or import another application aggregate's contracts to reuse an interface.
+- **Keep aggregate-local ports local.** A port required by a proc use case belongs to proc; a port required by a pool use case belongs to pool. Part-owned ports remain in Part, but do not move a proc- or pool-owned port into Part, or import another application aggregate's contracts to reuse an interface.
 
 The rules apply to aggregate core packages. They do not prohibit an aggregate from using its own capability packages, or either aggregate from using Part-owned domain contracts. Existing adapter-direction rules continue to apply independently.
 
@@ -17,8 +17,8 @@ The rules apply to aggregate core packages. They do not prohibit an aggregate fr
 | Source core | Part | Same aggregate | Other application aggregate |
 |---|---:|---:|---:|
 | Part | Allowed | — | Forbidden |
-| PROC | Allowed | Allowed | POOL forbidden |
-| POOL | Allowed | Allowed | PROC forbidden |
+| proc | Allowed | Allowed | pool forbidden |
+| pool | Allowed | Allowed | proc forbidden |
 
 Imports within one aggregate must still form an acyclic Go package graph. Go's compiler detects import cycles; the existing mise source gate runs `go vet` and `depguard` (`mise run sources:gate` from the engine repository).
 
