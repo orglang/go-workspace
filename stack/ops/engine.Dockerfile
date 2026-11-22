@@ -7,7 +7,6 @@ WORKDIR /orglang
 # Keep dependency metadata separate from source so source-only changes reuse this layer.
 COPY go.work go.work.sum ./
 COPY engine/go.mod engine/go.sum ./engine/
-COPY sdk/go.mod sdk/go.sum ./sdk/
 
 # Keep downloaded modules in the layer cache: BuildKit's GHA cache exporter does
 # not persist cache-mount contents across ephemeral CI builders.
