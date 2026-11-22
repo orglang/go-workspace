@@ -23,12 +23,12 @@ run = "docker buildx bake"
 description = "Start specified stand"
 tools = { docker-cli = "29.9.3", docker-compose = "5.7.1" }
 dir = "stack"
-usage = 'arg "<ops>" help="Stack operations profile" { choices "commons" }'
+usage = 'arg "<target>" help="Deployment target" { choices "commons" }'
 run = """
 docker compose \
   --file ops/postgres.compose.yaml \
   --file ops/engine.compose.yaml \
-  --env-file "ops/{{ usage.ops }}/.env" \
+  --env-file "ops/{{ usage.target }}/.env" \
   up \
   --remove-orphans \
   --pull missing \
@@ -36,18 +36,20 @@ docker compose \
   --detach
 """
 
-[tasks.stack]
-description = "Build specified stack if checks passed"
-usage = 'arg "<ops>" help="Stack operations profile" { choices "commons" }'
-run = [
-  "mise run stand {{ usage.ops }}",
-  "mise -C engine run tests:e2e",
-  "echo stack were built",
-]
+[tasks."distros:deploy"]
+description = "Deploy the packaged distro to the selected target"
+usage = 'arg "<target>" help="Deployment target" { choices "commons" }'
+run = "mise run stand {{ usage.target }}"
+
+[tasks."distros:e2e-test"]
+description = "Run end-to-end tests against the selected deployment"
+usage = 'arg "<target>" help="Deployment target" { choices "commons" }'
+run = "mise -C engine exec -- go test -failfast ./test/..."
 
 [tasks."distros:gate"]
-description = "Run engine Binaries and workspace Distros checks"
+description = "Run the Engine Binaries gate and Workspace Distros lifecycle"
 depends = ["//engine:binaries:gate"]
+usage = 'arg "<target>" help="Deployment target" { choices "commons" }'
 dir = "engine"
 sources = [
   "Dockerfile",
@@ -70,5 +72,6 @@ sources = [
 outputs = []
 run = [
   { task = ":distros:package" },
-  { task = ":stack", args = ["commons"] },
+  { task = ":distros:deploy", args = ["{{ usage.target }}"] },
+  { task = ":distros:e2e-test", args = ["{{ usage.target }}"] },
 ]
