@@ -14,35 +14,27 @@ run = [
   "mise -E distros-run lock",
 ]
 
-[tasks."binaries:build"]
-description = "Test and build component binaries"
-# This operation is still a Taskfile task; mise monorepo addressing exposes only mise tasks.
-run = "mise -C engine exec -- task binaries"
-
-[tasks.binaries]
-alias = "bins"
-description = "Test and build all binaries"
-depends = ["binaries:build"]
-
-[tasks."distros:build"]
-description = "Build all distribution artifacts"
+[tasks."distros:package"]
+description = "Package distribution artifacts"
 tools = { docker-cli = "29.9.3", "aqua:docker/buildx" = "0.39.0" }
+dir = "."
 run = "docker buildx bake"
 
-[tasks.distros]
-description = "Build all distros"
-depends = ["distros:build"]
+[tasks."distros:smoke-test"]
+description = "Smoke-test the packaged distribution artifact"
+# TODO: Define a container-level smoke test for the packaged image.
+run = "true"
 
-[tasks.stand]
-description = "Start specified stand"
+[tasks."distros:deploy"]
+description = "Deploy the packaged distro to the selected target"
 tools = { docker-cli = "29.9.3", docker-compose = "5.7.1" }
 dir = "stack"
-usage = 'arg "<ops>" help="Stack operations profile" { choices "commons" }'
+usage = 'arg "<target>" help="Deployment target" { choices "commons" }'
 run = """
 docker compose \
   --file ops/postgres.compose.yaml \
   --file ops/engine.compose.yaml \
-  --env-file "ops/{{ usage.ops }}/.env" \
+  --env-file "ops/{{ usage.target }}/.env" \
   up \
   --remove-orphans \
   --pull missing \
@@ -50,19 +42,15 @@ docker compose \
   --detach
 """
 
-[tasks.stack]
-description = "Build specified stack if checks passed"
-usage = 'arg "<ops>" help="Stack operations profile" { choices "commons" }'
-run = [
-  "mise run stand {{ usage.ops }}",
-  # E2E tests are still defined in the engine Taskfile, not in its mise config.
-  "mise -C engine exec -- task tests:e2e",
-  "echo stack were built",
-]
+[tasks."distros:e2e-test"]
+description = "Run end-to-end tests against the selected deployment"
+usage = 'arg "<target>" help="Deployment target" { choices "commons" }'
+run = "mise -C engine exec -- go test -failfast ./test/e2e/..."
 
 [tasks."distros:gate"]
-description = "Run engine Binaries and workspace Distros checks"
+description = "Run the Engine Binaries gate and Workspace Distros lifecycle"
 depends = ["//engine:binaries:gate"]
+usage = 'arg "<target>" help="Deployment target" { choices "commons" }'
 dir = "engine"
 sources = [
   "Dockerfile",
@@ -84,6 +72,8 @@ sources = [
 ]
 outputs = []
 run = [
-  { task = ":distros" },
-  { task = ":stack", args = ["commons"] },
+  { task = ":distros:package" },
+  { task = ":distros:smoke-test" },
+  { task = ":distros:deploy", args = ["{{ usage.target }}"] },
+  { task = ":distros:e2e-test", args = ["{{ usage.target }}"] },
 ]

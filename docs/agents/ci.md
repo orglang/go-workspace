@@ -16,24 +16,58 @@ specs → sources → binaries → distros → workloads
 | `distros` | Package binaries with the required runtime and distribution inputs. |
 | `workloads` | Deploy and verify the application in a target environment. |
 
-The arrows describe the lifecycle, not implicit job dependencies. Every operation must declare its actual inputs.
+The arrows describe the lifecycle, not implicit dependencies between independent workflow runs. Every operation must declare its actual inputs.
 
-A downstream stage must consume the exact upstream artifact, not rebuild it from a mutable checkout. In particular, `distros` consumes the binary artifact produced by `binaries`; preserve its immutable identity/digest and source revision. A distro may package or reference that binary together with runtime components and distribution configuration. A workload is the deployed application, not another packaged artifact.
+For the initial implementation, the Distros gate invokes the Engine Binaries gate in the same workflow execution before running the Workspace packaging and deployment tasks. The current Docker Bake configuration still uses the source-build Dockerfile and the mutable `latest` image tag; replacing that with binary-copy packaging and immutable artifact identity is deferred to [#129](https://github.com/orglang/go-workspace/issues/129). The smoke-test task is currently an explicit no-op placeholder until a container-level check is defined. Provenance metadata and supply-chain attestations are tracked separately in [#126](https://github.com/orglang/go-workspace/issues/126).
+
+## Stage task interfaces
+
+### Specs
+
+- `specs:prepare` generates OpenAPI and refreshes the TypeSpec toolchain and npm lockfiles.
+- `specs:gate` verifies formatting, generated OpenAPI, and lockfile freshness.
+- `specs:lint` checks formatting without modifying files.
+- `specs:analyze` compiles the TypeSpec project without emitting artifacts.
+
+Installing the prepared specification as a Git commit and publishing/pushing it are manual operations. That commit is the specification revision consumed by `sources:prepare`.
+
+### Sources
+
+- `sources:prepare` generates source files, refreshes source toolchain locks, and formats handwritten Go.
+- `sources:gate` verifies generated sources, lockfiles, and formatting.
+- `sources:lint` runs Go linting without modifying files.
+- `sources:analyze` runs `go vet` and the architecture rules enforced by `depguard`.
+
+Installing the prepared sources as a Git commit and publishing/pushing them are manual operations. The source commit consumed by `binaries:build` includes the prepared specifications.
+
+### Binaries
+
+- `binaries:unit-test` runs unit tests.
+- `binaries:build` builds `dist/go-engine` from the checked-out source commit.
+- `binaries:integration-test` runs integration tests after the build.
+- `binaries:gate` runs unit tests, build, then integration tests, in that order.
+
+### Distros
+
+- `distros:package` currently invokes Docker Bake using the existing source-build Dockerfile. Switching to packaging the Binaries gate output without recompiling is deferred to [#129](https://github.com/orglang/go-workspace/issues/129).
+- `distros:smoke-test` is a placeholder pending a defined container-level smoke-test contract.
+- `distros:deploy <target>` starts the Compose stack for the selected target using the image configured by Docker Compose.
+- `distros:e2e-test <target>` runs end-to-end tests against that deployment.
+- `distros:gate <target>` runs package, smoke-test, deploy, and E2E-test in order, passing the same target to both deployment and E2E testing.
+
+Distro publication and advancement of mutable tags remain outside this lifecycle.
 
 ## Verification
 
-The common lifecycle from [#43](https://github.com/orglang/go-workspace/issues/43) is:
+The common lifecycle is:
 
 ```text
 prepare → check1 → install → check2 → [publish]
 ```
 
-For sources, the full lifecycle applies to local development and source-artifact creation. CI does not run the source `prepare`, `install`, or `publish` steps; it runs only `check1` and `check2` against the revision under test.
+CI runs the Specs and Sources gates, lint, and analysis against the revision under test. It does not perform the manual Git commit/install or publication steps.
 
-- `sources.check1` runs formatting checks and linting. It is the fast source-quality gate.
-- `sources.check2` runs static analysis and architecture analysis against a clean checkout of the exact revision. In local development, this is the commit created by `sources.install`; in CI, it is the checked-out revision under test.
-
-For binaries, `check1` runs unit tests and `check2` runs integration tests. Each CI check must verify the artifact or revision assigned to its stage and must not silently substitute a rebuilt output.
+For binaries, unit tests run before the build and integration tests after it. In the current Distros execution, the Binaries gate builds the binary and packaging consumes that output in the same workflow run. Cross-run artifact transfer and reuse are deferred to [#129](https://github.com/orglang/go-workspace/issues/129).
 
 ## Tooling
 
@@ -44,7 +78,7 @@ Keep these responsibilities separate: toolchain management belongs to mise; proj
 
 ## Workflow ownership and revisions
 
-- Component repositories own their event-triggered workflows and required check contexts.
+- Component repositories own event-triggered workflows and required check contexts.
 - The workspace owns workspace membership and cross-repository coordination.
 - Test same-repository pull request and merge-queue candidates at the exact revision supplied by GitHub. For pull requests, make clear whether a check tests the PR head or merge ref.
 - A merge-queue SHA applies only to the repository whose queue raised the event. Cross-repository inputs must be pinned to explicit immutable revisions; never silently check out `main`.
