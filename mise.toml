@@ -75,7 +75,7 @@ description = "Run end-to-end tests against the selected deployment"
 usage = 'arg "<target>" help="Target environment" { choices "commons" }'
 run = """
 test -f "stack/ops/{{ usage.target }}/.env"
-E2E_TARGET="{{ usage.target }}" mise -C engine run tests:e2e
+E2E_TARGET="{{ usage.target }}" mise -C engine exec -- task tests:e2e
 """
 
 [tasks."distros:gate"]
@@ -103,6 +103,6 @@ description = "Build specified stack if checks passed"
 usage = 'arg "<ops>" help="Stack operations profile" { choices "commons" }'
 run = [
   "mise run stand {{ usage.ops }}",
-  "mise -C engine run tests:e2e",
+  "mise -C engine exec -- task tests:e2e",
   "echo stack were built",
 ]
