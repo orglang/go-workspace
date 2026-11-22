@@ -22,7 +22,7 @@ pool/typedef/adapter/  di_fx.go       Module
 
 Everything toolkit-specific is in `adapter/`, including `di_fx.go` (ADR 0003)
 and the generated conversions, which are wire concerns (ADR 0005). Everything
-in `core/` is reachable without pgx, echo, sqlbuilder, fx, or the SDK.
+in `core/` is reachable without pgx, echo, sqlbuilder, or fx.
 
 ## Dead code during migration
 
@@ -95,8 +95,8 @@ import typedef "orglang/go-engine/pool/typedef/core"
 
 A prefix appears only to break a collision between two same-named imports:
 
-1. **A same-named SDK package in the same file** takes the `sdk` prefix
-   (`sdktypedef`), leaving our half bare (`typedef`).
+1. **A same-named generated API package in the same file** takes the `api` prefix
+   (`apitypedef`), leaving our half bare (`typedef`).
 2. **The same aggregate from both `pool` and `proc` in one file** is prefixed
    on both sides: `pooltypedef`, `proctypedef`. Examples: `app/main.go`,
    `prog/core.go`, `prog/tc.go`, `pool/compexec/core.go`.
