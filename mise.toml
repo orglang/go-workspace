@@ -15,79 +15,23 @@ run = [
 ]
 
 [tasks."binaries:build"]
-description = "Build the engine binary artifact"
-run = "mise -C engine exec -- task binaries:build"
+description = "Test and build component binaries"
+# This operation is still a Taskfile task; mise monorepo addressing exposes only mise tasks.
+run = "mise -C engine exec -- task binaries"
 
 [tasks.binaries]
 alias = "bins"
 description = "Test and build all binaries"
-depends = ["//engine:binaries:gate"]
+depends = ["binaries:build"]
 
-[tasks."distros:package"]
-description = "Package the exact engine binary and PostgreSQL migrations"
+[tasks."distros:build"]
+description = "Build all distribution artifacts"
 tools = { docker-cli = "29.9.3", "aqua:docker/buildx" = "0.39.0" }
-run = """
-set -eu
-source_sha="$(git -C engine rev-parse HEAD)"
-test -x engine/dist/go-engine
-binary_sha="$(sha256sum engine/dist/go-engine | cut -d' ' -f1)"
-ENGINE_SOURCE_SHA="$source_sha" ENGINE_BINARY_SHA="$binary_sha" docker buildx bake
-image="orglang/go-engine:$source_sha"
-image_id="$(docker image inspect "$image" | python3 -c 'import json,sys; print(json.load(sys.stdin)[0]["Id"])')"
-printf '%s\n' "$image_id" > engine/dist/go-engine.image-id
-"""
+run = "docker buildx bake"
 
-[tasks."distros:smoke-test"]
-description = "Smoke-test the packaged image and verify its binary digest"
-tools = { docker-cli = "29.9.3" }
-run = """
-set -eu
-source_sha="$(git -C engine rev-parse HEAD)"
-binary_sha="$(sha256sum engine/dist/go-engine | cut -d' ' -f1)"
-image_id_file="engine/dist/go-engine.image-id"
-expected_image_id="$(cat "$image_id_file")"
-image="orglang/go-engine:$source_sha"
-image_id="$(docker image inspect "$image" | python3 -c 'import json,sys; print(json.load(sys.stdin)[0]["Id"])')"
-test "$image_id" = "$expected_image_id"
-checks="$(docker run --rm --entrypoint /bin/sh "$image" -ec 'test -x /orglang/go-engine; sha256sum /orglang/go-engine')"
-actual_sha="$(printf '%s' "$checks" | awk 'NR == 1 {print $1}')"
-label_sha="$(docker image inspect "$image" | python3 -c 'import json,sys; print(json.load(sys.stdin)[0]["Config"]["Labels"]["orglang.binary.digest"])')"
-test "$actual_sha" = "$binary_sha"
-test "$label_sha" = "$binary_sha"
-"""
-
-[tasks."distros:deploy"]
-description = "Deploy the packaged artifact to the selected target environment"
-tools = { docker-cli = "29.9.3", docker-compose = "5.7.1" }
-usage = 'arg "<target>" help="Target environment" { choices "commons" }'
-run = """
-set -eu
-source_sha="$(git -C engine rev-parse HEAD)"
-image="orglang/go-engine:$source_sha"
-expected_image="$(cat engine/dist/go-engine.image-id)"
-actual_image="$(docker image inspect "$image" | python3 -c 'import json,sys; print(json.load(sys.stdin)[0]["Id"])')"
-test "$actual_image" = "$expected_image"
-ENGINE_IMAGE="$image" mise run stand "{{ usage.target }}"
-"""
-
-[tasks."distros:e2e-test"]
-description = "Run end-to-end tests against the selected deployment"
-usage = 'arg "<target>" help="Target environment" { choices "commons" }'
-run = """
-test -f "stack/ops/{{ usage.target }}/.env"
-E2E_TARGET="{{ usage.target }}" mise -C engine exec -- task tests:e2e
-"""
-
-[tasks."distros:gate"]
-description = "Package, smoke-test, deploy, and E2E-test one immutable distro"
-depends = ["//engine:binaries:gate"]
-usage = 'arg "<target>" help="Target environment" { choices "commons" }'
-run = [
-  { task = ":distros:package" },
-  { task = ":distros:smoke-test" },
-  { task = ":distros:deploy", args = ["{{ usage.target }}"] },
-  { task = ":distros:e2e-test", args = ["{{ usage.target }}"] },
-]
+[tasks.distros]
+description = "Build all distros"
+depends = ["distros:build"]
 
 [tasks.stand]
 description = "Start specified stand"
@@ -95,7 +39,15 @@ tools = { docker-cli = "29.9.3", docker-compose = "5.7.1" }
 dir = "stack"
 usage = 'arg "<ops>" help="Stack operations profile" { choices "commons" }'
 run = """
-docker compose --file ops/postgres.compose.yaml --file ops/engine.compose.yaml --env-file "ops/{{ usage.ops }}/.env" up --remove-orphans --pull missing --quiet-pull --detach
+docker compose \
+  --file ops/postgres.compose.yaml \
+  --file ops/engine.compose.yaml \
+  --env-file "ops/{{ usage.ops }}/.env" \
+  up \
+  --remove-orphans \
+  --pull missing \
+  --quiet-pull \
+  --detach
 """
 
 [tasks.stack]
@@ -103,6 +55,35 @@ description = "Build specified stack if checks passed"
 usage = 'arg "<ops>" help="Stack operations profile" { choices "commons" }'
 run = [
   "mise run stand {{ usage.ops }}",
-  "mise -C engine exec -- task tests:e2e",
+  # E2E tests are still defined in the engine Taskfile, not in its mise config.
+  "mise -C engine run tests:e2e",
   "echo stack were built",
+]
+
+[tasks."distros:gate"]
+description = "Run engine Binaries and workspace Distros checks"
+depends = ["//engine:binaries:gate"]
+dir = "engine"
+sources = [
+  "Dockerfile",
+  "Dockerfile.*",
+  "**/Dockerfile",
+  "**/Dockerfile.*",
+  "*.Dockerfile",
+  "**/*.Dockerfile",
+  ".dockerignore",
+  "compose.yaml",
+  "compose.yml",
+  "*.compose.yaml",
+  "*.compose.yml",
+  "**/compose.yaml",
+  "**/compose.yml",
+  "**/*.compose.yaml",
+  "**/*.compose.yml",
+  "../stack/**",
+]
+outputs = []
+run = [
+  { task = ":distros" },
+  { task = ":stack", args = ["commons"] },
 ]
