@@ -1,6 +1,8 @@
 # Core dependency boundaries
 
-The dependency direction between the three aggregates is intentionally asymmetric. `part` is the generic participant abstraction implemented by `proc` and `pool`; those are independent application aggregates. The abstraction is currently implemented in the Go source tree under `internal/adt` (including its existing package paths).
+The dependency direction between the three aggregates is intentionally asymmetric. `part` is the generic participant abstraction implemented by `proc` and `pool`; those are independent application aggregates.
+
+> **Implementation naming:** `part` is the architectural name for the generic participant abstraction. Its current Go implementation lives under `internal/adt`. The package will be renamed to `internal/part` in the follow-up [go-engine#196](https://github.com/orglang/go-engine/issues/196).
 
 ## Rules
 
