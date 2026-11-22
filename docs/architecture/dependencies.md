@@ -20,7 +20,7 @@ The rules apply to aggregate core packages. They do not prohibit an aggregate fr
 | PROC | Allowed | Allowed | POOL forbidden |
 | POOL | Allowed | Allowed | PROC forbidden |
 
-Imports within one aggregate must still form an acyclic Go package graph. Go's compiler detects import cycles; the regular source analysis task runs `go vet` and `depguard`.
+Imports within one aggregate must still form an acyclic Go package graph. Go's compiler detects import cycles; the existing mise source gate runs `go vet` and `depguard` (`mise run sources:gate` from the engine repository).
 
 ## Examples
 
