@@ -1,21 +1,20 @@
 # syntax=docker/dockerfile:1
 
-FROM golang:1.27.0-alpine AS builder
+FROM golang:1.27.4-alpine AS builder
 
 WORKDIR /orglang
 
 # Keep dependency metadata separate from source so source-only changes reuse this layer.
-COPY go.work go.work.sum ./
 COPY engine/go.mod engine/go.sum ./engine/
 
 # Keep downloaded modules in the layer cache: BuildKit's GHA cache exporter does
 # not persist cache-mount contents across ephemeral CI builders.
-RUN go mod download
+RUN cd engine && go mod download
 
 COPY . .
 
 RUN --mount=type=cache,target=/root/.cache/go-build \
-    go build -o go-engine engine/cmd/engine/main.go
+    cd engine && go build -o /orglang/go-engine ./cmd/engine/main.go
 
 FROM alpine:3.22
 
