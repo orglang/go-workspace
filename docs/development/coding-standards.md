@@ -52,6 +52,16 @@ Keep each adapter model (DTOs, request/response structures, view models) and eac
 
 Adapters may depend on the core packages whose ports they implement. Core packages must not import adapters.
 
+## File boundaries
+
+Choose file boundaries by cohesive responsibility and by what is likely to change together, not by mechanically matching one file to one type.
+
+- Split a file when it combines independently understandable responsibilities that can be navigated, changed, or tested separately (for example: model declarations, conversion, persistence, serialization, and validation).
+- Keep closely related types, methods, and small helpers together. Do not split solely because a file is long or because it contains several types.
+- In a shared adapter package, use the component name before its role when no external technology distinguishes the implementation (for example, `expr_model.go` and `expr_converter.go`). When a concrete technology matters, put it first (for example, `ent_expr_repo.go`, `ent_expr_model.go`, and `ent_expr_converter.go`).
+- Name persistence models, converters, and repositories separately when they represent distinct responsibilities. Avoid vague suffixes such as `ds` when the file is actually a model, converter, or repository.
+- In core, name serialization and validation by their behavior (for example, `expr_json.go` and `expr_validation.go`), not as converters unless they actually convert between representations.
+
 ## Visibility
 
 Go has no private or public files. Visibility is determined by identifier capitalization and package boundaries, not filenames.
