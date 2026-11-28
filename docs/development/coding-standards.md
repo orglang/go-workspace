@@ -25,10 +25,10 @@ Do not create a `core.go` file whose only purpose is to repeat the package name.
 - `service.go` — service type and constructor.
 - `service_<operation>.go` — implementation of one public service operation (for example, `service_create.go`).
 - `converter.go` — core conversions when they form a distinct responsibility.
-- `error.go` — errors shared across the package when a separate file improves navigation.
-- `<domain>_error.go` — errors belonging to one domain (for example, `expr_error.go` or `typedef_error.go`).
+- `error.go` — errors belonging to the package. The package path already supplies the component/domain context, so do not repeat it in the filename.
+- `<name>_error.go` — only when one package contains multiple independently meaningful groups of errors and the name is needed to distinguish them (for example, `expr_error.go` alongside `error.go`).
 
-Use the same responsibility-first order in core and adapters: component or operation first, role second. Keep each domain model and each public service operation in its own file, even when small. Put the role before the operation in service filenames (`service_create.go`, `service_modify.go`). Methods of one type may be declared across files in the same package. Keep private helpers beside the implementation they support; small, tightly related types may remain together.
+Use the same responsibility-first order in core and adapters: component or operation first, role second. In core packages, rely on the package path for the component name instead of repeating it in filenames. Keep package-wide names such as `contract.go`, `service.go`, and `error.go`. Use a component prefix only when needed to distinguish another responsibility or model in the same package. Keep each domain model and each public service operation in its own file, even when small. Put the role before the operation in service filenames (`service_create.go`, `service_modify.go`). Methods of one type may be declared across files in the same package. Keep private helpers beside the implementation they support; small, tightly related types may remain together.
 
 Do not introduce `core/model` or `core/service` subpackages merely to split files. Create a subpackage only when it establishes a real API, encapsulation, or dependency boundary. Do not add a speculative `query.go`; keep operation parameters beside their contract or implementation until query types form a distinct group.
 
@@ -63,7 +63,7 @@ Choose file boundaries by cohesive responsibility and by what is likely to chang
 - Keep closely related types, methods, and small helpers together. Do not split solely because a file is long or because it contains several types.
 - In a shared adapter package, use **`[<component>_]<role>[_<technology>].go`**. Keep the component (when needed) and role first; append a technology only when it distinguishes a concrete implementation (for example, `expr_model.go`, `expr_converter.go`, `expr_repo_ent.go`, `expr_model_ent.go`, and `expr_converter_goverter.go`). This keeps the filename readable by responsibility before implementation detail.
 - Name persistence models, converters, and repositories separately when they represent distinct responsibilities. Avoid vague suffixes such as `ds` when the file is actually a model, converter, or repository.
-- In core packages, rely on the package path for the component name instead of repeating it in filenames. Use role-only names such as `model.go` when the package path makes the component clear; add a component prefix (for example, `expr_model.go`) only when needed to distinguish another responsibility or model in the same package. Keep package-wide names such as `contract.go`, `service.go`, and `error.go`. Name serialization and validation by their behavior (for example, `expr_json.go` and `expr_validation.go`), not as converters unless they actually convert between representations.
+- In core packages, rely on the package path for the component name instead of repeating it in filenames. Use role-only names such as `model.go` and `error.go` when the package path makes the component clear; add a component prefix (for example, `expr_model.go` or `expr_error.go`) only when needed to distinguish another responsibility or group in the same package. Keep package-wide names such as `contract.go` and `service.go`. Name serialization and validation by their behavior (for example, `expr_json.go` and `expr_validation.go`), not as converters unless they actually convert between representations.
 
 ## Visibility
 
