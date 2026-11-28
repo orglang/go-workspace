@@ -10,6 +10,7 @@ These standards apply to Go source code in the `orglang/go-engine` repository. T
 - In a shared `adapter` package, order filename parts as **component → role → technology**; omit the component when the package already makes it clear (for example, `expr_model.go`, `expr_repo_ent.go`, `user_controller_echo.go`, `user_presenter_echo.go`). Put the technology last, and include it only when it distinguishes implementations of the same responsibility.
 - When a technology-specific subpackage is justified, the package name already identifies the technology; omit it from filenames inside that package.
 - Use `repo` rather than `repository`, `converter` rather than `conversion`, and `wirer` rather than `di`.
+- Use agent nouns (`-er`, `-or`) for components that perform an operation (for example, `converter`, `parser`, or `serializer`). Use action or process nouns (`-tion`, `-ing`) for the operation or its logic (for example, `validation`, `serialization`, or `parsing`). Choose the term that matches the file's responsibility; do not force artificial pairs or apply suffixes mechanically.
 - Name generated files consistently with their generator directive and output role. Keep generated and source files in sync when renaming.
 
 Do not mechanically expand every short name. A short name is appropriate when it is established and unambiguous in its package (for example, `tx`, `dto`, or `api`). The package context should make the responsibility clear.
