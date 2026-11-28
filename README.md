@@ -21,3 +21,7 @@ git clone https://github.com/orglang/go-engine.git engine
 ## Архитектура
 
 Описание границ репозитория, ответственности приложения, структуры engine, правил зависимостей и плана миграции находится в [docs/architecture.md](docs/architecture.md).
+
+## Разработка
+
+Соглашения по именованию Go-файлов, организации пакетов, экспортируемости и структуре core/adapter описаны в [Coding Standards](docs/development/coding-standards.md).
