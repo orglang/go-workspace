@@ -19,13 +19,13 @@ Do not mechanically expand every short name. A short name is appropriate when it
 Do not create a `core.go` file whose only purpose is to repeat the package name. Group core files by responsibility:
 
 - `contract.go` — ports, interfaces, and types directly associated with those contracts.
-- `model_<name>.go` — a domain model and its closely related definitions or methods.
+- `<name>_model.go` — a domain model and its closely related definitions or methods (for example, `expr_model.go`).
 - `service.go` — service type and constructor.
-- `service_<operation>.go` — implementation of one public service operation.
+- `<operation>_service.go` — implementation of one public service operation (for example, `create_service.go`).
 - `converter.go` — core conversions when they form a distinct responsibility.
 - `errors.go` — core errors when a separate file improves navigation.
 
-Keep each domain model and each public service operation in its own file, even when small. Methods of one type may be declared across files in the same package. Keep private helpers beside the implementation they support; small, tightly related types may remain together.
+Use the same responsibility-first order in core and adapters: component or operation first, role second. Keep each domain model and each public service operation in its own file, even when small. Methods of one type may be declared across files in the same package. Keep private helpers beside the implementation they support; small, tightly related types may remain together.
 
 Do not introduce `core/model` or `core/service` subpackages merely to split files. Create a subpackage only when it establishes a real API, encapsulation, or dependency boundary. Do not add a speculative `query.go`; keep operation parameters beside their contract or implementation until query types form a distinct group.
 
@@ -60,7 +60,7 @@ Choose file boundaries by cohesive responsibility and by what is likely to chang
 - Keep closely related types, methods, and small helpers together. Do not split solely because a file is long or because it contains several types.
 - In a shared adapter package, use **`<component>_<role>[_<technology>].go`**. Keep the component and role first; append a technology only when it distinguishes a concrete implementation (for example, `expr_model.go`, `expr_converter.go`, `expr_repo_ent.go`, `expr_model_ent.go`, and `expr_converter_goverter.go`). This keeps the filename readable by responsibility before implementation detail.
 - Name persistence models, converters, and repositories separately when they represent distinct responsibilities. Avoid vague suffixes such as `ds` when the file is actually a model, converter, or repository.
-- In core, name serialization and validation by their behavior (for example, `expr_json.go` and `expr_validation.go`), not as converters unless they actually convert between representations.
+- In core, use `<component>_<role>.go` for domain-specific files (for example, `expr_model.go`); reserve generic names such as `contract.go`, `service.go`, and `errors.go` for package-wide responsibilities. Name serialization and validation by their behavior (for example, `expr_json.go` and `expr_validation.go`), not as converters unless they actually convert between representations.
 
 ## Visibility
 
