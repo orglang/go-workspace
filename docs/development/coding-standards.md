@@ -7,7 +7,7 @@ These standards apply to Go source code in the `orglang/go-engine` repository. T
 - Name a file for its primary responsibility, not merely for the types it happens to contain.
 - Avoid local or unexplained abbreviations. Use established project vocabulary consistently.
 - Include a technology name only when it distinguishes concrete implementations of the same responsibility.
-- In a shared `adapter` package, order filename parts as **technology → component → model/operation** (for example, `pgx_repo.go`, `echo_controller.go`, `echo_presenter.go`). Do not append the technology after the responsibility.
+- In a shared `adapter` package, order filename parts as **component → role → technology** (for example, `expr_model.go`, `expr_repo_ent.go`, `user_controller_echo.go`, `user_presenter_echo.go`). Put the technology last, and include it only when it distinguishes implementations of the same responsibility.
 - When a technology-specific subpackage is justified, the package name already identifies the technology; omit it from filenames inside that package.
 - Use `repo` rather than `repository`, `converter` rather than `conversion`, and `wirer` rather than `di`.
 - Name generated files consistently with their generator directive and output role. Keep generated and source files in sync when renaming.
@@ -35,14 +35,14 @@ Start with a single `adapter` package and technology-prefixed filenames when thi
 
 ```text
 adapter/
-├── ent_repo.go
-├── ent_model_definition.go
-├── ent_repo_create.go
-├── echo_controller.go
-├── echo_model_request.go
-├── echo_controller_create.go
-├── echo_presenter.go
-├── goverter_converter.go
+├── repo_ent.go
+├── definition_model_ent.go
+├── create_repo_ent.go
+├── user_controller_echo.go
+├── request_model_echo.go
+├── create_controller_echo.go
+├── user_presenter_echo.go
+├── converter_goverter.go
 └── do_wirer.go
 ```
 
@@ -58,7 +58,7 @@ Choose file boundaries by cohesive responsibility and by what is likely to chang
 
 - Split a file when it combines independently understandable responsibilities that can be navigated, changed, or tested separately (for example: model declarations, conversion, persistence, serialization, and validation).
 - Keep closely related types, methods, and small helpers together. Do not split solely because a file is long or because it contains several types.
-- In a shared adapter package, use the component name before its role when no external technology distinguishes the implementation (for example, `expr_model.go` and `expr_converter.go`). When a concrete technology matters, put it first (for example, `ent_expr_repo.go`, `ent_expr_model.go`, and `ent_expr_converter.go`).
+- In a shared adapter package, use **`<component>_<role>[_<technology>].go`**. Keep the component and role first; append a technology only when it distinguishes a concrete implementation (for example, `expr_model.go`, `expr_converter.go`, `expr_repo_ent.go`, `expr_model_ent.go`, and `expr_converter_goverter.go`). This keeps the filename readable by responsibility before implementation detail.
 - Name persistence models, converters, and repositories separately when they represent distinct responsibilities. Avoid vague suffixes such as `ds` when the file is actually a model, converter, or repository.
 - In core, name serialization and validation by their behavior (for example, `expr_json.go` and `expr_validation.go`), not as converters unless they actually convert between representations.
 
