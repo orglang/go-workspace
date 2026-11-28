@@ -24,7 +24,8 @@ Do not create a `core.go` file whose only purpose is to repeat the package name.
 - `service.go` — service type and constructor.
 - `service_<operation>.go` — implementation of one public service operation (for example, `service_create.go`).
 - `converter.go` — core conversions when they form a distinct responsibility.
-- `errors.go` — core errors when a separate file improves navigation.
+- `error.go` — errors shared across the package when a separate file improves navigation.
+- `<domain>_error.go` — errors belonging to one domain (for example, `expr_error.go` or `typedef_error.go`).
 
 Use the same responsibility-first order in core and adapters: component or operation first, role second. Keep each domain model and each public service operation in its own file, even when small. Put the role before the operation in service filenames (`service_create.go`, `service_modify.go`). Methods of one type may be declared across files in the same package. Keep private helpers beside the implementation they support; small, tightly related types may remain together.
 
@@ -61,7 +62,7 @@ Choose file boundaries by cohesive responsibility and by what is likely to chang
 - Keep closely related types, methods, and small helpers together. Do not split solely because a file is long or because it contains several types.
 - In a shared adapter package, use **`[<component>_]<role>[_<technology>].go`**. Keep the component (when needed) and role first; append a technology only when it distinguishes a concrete implementation (for example, `expr_model.go`, `expr_converter.go`, `expr_repo_ent.go`, `expr_model_ent.go`, and `expr_converter_goverter.go`). This keeps the filename readable by responsibility before implementation detail.
 - Name persistence models, converters, and repositories separately when they represent distinct responsibilities. Avoid vague suffixes such as `ds` when the file is actually a model, converter, or repository.
-- In core, use `<component>_<role>.go` for domain-specific files (for example, `expr_model.go`); reserve generic names such as `contract.go`, `service.go`, and `errors.go` for package-wide responsibilities. Name serialization and validation by their behavior (for example, `expr_json.go` and `expr_validation.go`), not as converters unless they actually convert between representations.
+- In core, use `<component>_<role>.go` for domain-specific files (for example, `expr_model.go`); reserve generic names such as `contract.go`, `service.go`, and `error.go` for package-wide responsibilities. Name serialization and validation by their behavior (for example, `expr_json.go` and `expr_validation.go`), not as converters unless they actually convert between representations.
 
 ## Visibility
 
