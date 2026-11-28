@@ -52,7 +52,6 @@ Keep each adapter model (DTOs, request/response structures, view models) and eac
 
 Adapters may depend on the core packages whose ports they implement. Core packages must not import adapters.
 
-
 ## File boundaries
 
 Choose file boundaries by cohesive responsibility and by what is likely to change together, not by mechanically matching one file to one type.
