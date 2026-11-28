@@ -21,11 +21,11 @@ Do not create a `core.go` file whose only purpose is to repeat the package name.
 - `contract.go` — ports, interfaces, and types directly associated with those contracts.
 - `<name>_model.go` — a domain model and its closely related definitions or methods (for example, `expr_model.go`).
 - `service.go` — service type and constructor.
-- `<operation>_service.go` — implementation of one public service operation (for example, `create_service.go`).
+- `service_<operation>.go` — implementation of one public service operation (for example, `service_create.go`).
 - `converter.go` — core conversions when they form a distinct responsibility.
 - `errors.go` — core errors when a separate file improves navigation.
 
-Use the same responsibility-first order in core and adapters: component or operation first, role second. Keep each domain model and each public service operation in its own file, even when small. Methods of one type may be declared across files in the same package. Keep private helpers beside the implementation they support; small, tightly related types may remain together.
+Use the same responsibility-first order in core and adapters: component or operation first, role second. Keep each domain model and each public service operation in its own file, even when small. Put the role before the operation in service filenames (`service_create.go`, `service_modify.go`). Methods of one type may be declared across files in the same package. Keep private helpers beside the implementation they support; small, tightly related types may remain together.
 
 Do not introduce `core/model` or `core/service` subpackages merely to split files. Create a subpackage only when it establishes a real API, encapsulation, or dependency boundary. Do not add a speculative `query.go`; keep operation parameters beside their contract or implementation until query types form a distinct group.
 
