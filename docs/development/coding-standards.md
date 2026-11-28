@@ -31,7 +31,7 @@ Do not introduce `core/model` or `core/service` subpackages merely to split file
 
 ## Adapter file organization
 
-Start with a single `adapter` package and technology-prefixed filenames when this keeps the package navigable:
+Start with a single `adapter` package and responsibility-first filenames, appending technology when needed:
 
 ```text
 adapter/
@@ -46,7 +46,7 @@ adapter/
 └── do_wirer.go
 ```
 
-Move to technology-specific subpackages (such as `adapter/ent` or `adapter/echo`) when an adapter grows enough to benefit from independent encapsulation, navigation, or reuse. In such a package, use responsibility-based names such as `repo.go`, `model_definition.go`, and `controller.go`; do not repeat the technology prefix.
+Move to technology-specific subpackages (such as `adapter/ent` or `adapter/echo`) when an adapter grows enough to benefit from independent encapsulation, navigation, or reuse. In such a package, use responsibility-based names such as `definition_model.go`, `create_repo.go`, and `user_controller.go`; do not repeat the technology suffix.
 
 Keep each adapter model (DTOs, request/response structures, view models) and each public adapter operation in its own file. Closely related helpers may stay beside the implementation. A directory is not automatically a package boundary: subpackages have separate visibility and imports.
 
